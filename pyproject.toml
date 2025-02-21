@@ -1,0 +1,7 @@
+[project]
+name = "schema-alchemist"
+version = "0.1.0"
+description = "turn your DB tables to python code"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = []
