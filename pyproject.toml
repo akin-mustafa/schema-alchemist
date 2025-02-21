@@ -4,4 +4,13 @@ version = "0.1.0"
 description = "turn your DB tables to python code"
 readme = "README.md"
 requires-python = ">=3.8"
-dependencies = []
+dependencies = [
+    "sqlalchemy>=2.0.38",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.4",
+    "pytest-cov>=5.0.0",
+    "ruff>=0.9.7",
+]
