@@ -1,6 +1,6 @@
 from typing import Any, Optional, Collection, Set, Tuple, Union
 
-from sqlalchemy import Engine, Connection, MetaData
+from sqlalchemy import Engine, Connection
 from sqlalchemy.engine import ObjectKind, ObjectScope
 from sqlalchemy.engine.reflection import _ReflectionInfo, Inspector
 
