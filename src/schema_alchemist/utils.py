@@ -23,7 +23,6 @@ from typing import (
 )
 
 import inflect
-from sqlalchemy.sql.type_api import TypeEngine
 
 DEFAULT_INDENT_CHAR = os.getenv("DEFAULT_IDENT_CHAR", " ")
 DEFAULT_INDENT_MULTIPLIER = int(os.getenv("DEFAULT_IDENT_MULTIPLIER", 4))

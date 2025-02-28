@@ -15,7 +15,6 @@ from schema_alchemist.utils import (
     ImportPathResolver,
     DEFAULT_INDENTATION,
     convert_to_attribute_name,
-    make_in_file_obj,
 )
 
 
