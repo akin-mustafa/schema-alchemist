@@ -6,27 +6,27 @@ from utils import make_in_file_obj
 
 def test_sorted_table(reflected_data, sorted_tables):
     expected = [
-        ("test", "categories"),
-        ("test", "products"),
-        ("test", "users"),
-        ("test", "orders"),
-        ("test", "product_categories"),
-        ("test", "profiles"),
-        ("test", "order_items"),
+        ("public", "categories"),
+        ("public", "products"),
+        ("public", "users"),
+        ("public", "orders"),
+        ("public", "product_categories"),
+        ("public", "profiles"),
+        ("public", "order_items"),
     ]
-    sg = CoreSchemaGenerator(reflected_data, sorted_tables, schema="test")
+    sg = CoreSchemaGenerator(reflected_data, sorted_tables, schema="public")
 
     assert sg.sorted_tables == expected
 
 
 def test_metadata_name(reflected_data, sorted_tables):
-    sg = CoreSchemaGenerator(reflected_data, sorted_tables, schema="test")
+    sg = CoreSchemaGenerator(reflected_data, sorted_tables, schema="public")
 
     assert sg.metadata_name == "metadata"
 
 
 def test_find_unique_name(reflected_data, sorted_tables):
-    sg = CoreSchemaGenerator(reflected_data, sorted_tables, schema="test")
+    sg = CoreSchemaGenerator(reflected_data, sorted_tables, schema="public")
     sg.table_class_name_map = {"test": "metadata"}
 
     assert sg.find_unique_name("metadata") == "metadata_"
