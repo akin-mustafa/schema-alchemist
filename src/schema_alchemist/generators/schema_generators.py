@@ -309,6 +309,10 @@ class DeclarativeSchemaGenerator(CoreSchemaGenerator):
             return self.singular_suffixes
         return self.plural_suffixes
 
+    def collect_imports(self):
+        self.resolve_relationships()
+        super().collect_imports()
+
     def table_has_attribute(self, attribute, table):
         columns = self.table_column_map[table]
         relationships = self.relation_names_map[table]
@@ -355,6 +359,7 @@ class DeclarativeSchemaGenerator(CoreSchemaGenerator):
 
         if relation_type in (SQLRelationshipType.m2o, SQLRelationshipType.m2m):
             use_singular_suffixes = False
+            self.import_path_resolver.insert(List)
             attribute_name = inflect_engine.to_plural(attribute_name)
 
         attribute_name = self.find_unique_key_for_relation_attribute(
@@ -433,7 +438,6 @@ class DeclarativeSchemaGenerator(CoreSchemaGenerator):
                 )
 
     def resolve_relationships(self):
-
         for main_table, fks in self.reflected_data.foreign_keys.items():
             target_tables = self.resolve_m2m_relationship(main_table, fks)
 
@@ -478,8 +482,6 @@ class DeclarativeSchemaGenerator(CoreSchemaGenerator):
         indexes = self.reflected_data.indexes
         pk_constraint = self.reflected_data.pk_constraint
         unique_constraints = self.reflected_data.unique_constraints
-
-        self.resolve_relationships()
 
         enums = self.generate_enums()
 
@@ -538,7 +540,6 @@ class SQLModelSchemaGenerator(DeclarativeSchemaGenerator):
 
     def generate(self):
         self.collect_imports()
-        self.resolve_relationships()
         enums = self.generate_enums()
         tables_generators = [
             SQLModelTableGenerator(

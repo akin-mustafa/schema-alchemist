@@ -53,7 +53,8 @@ def test_create_table_name_invalid_inputs(table, schema, expected_exception):
         ("123hello world", "_123helloWorld"),
         ("hello@world!", "HelloWorld"),
         ("  multiple   spaces  ", "MultipleSpaces"),
-        ("camelCaseTest", "Camelcasetest"),
+        ("camelCaseTest", "CamelCaseTest"),
+        ("platformDefinition", "PlatformDefinition"),
     ],
 )
 def test_to_class_name(input_str, expected_class_name):

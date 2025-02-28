@@ -425,7 +425,7 @@ def convert_to_class_name(s: str) -> str:
         raise ValueError("Class name cannot be empty.")
 
     words = s.split()
-    words = [w.capitalize() for w in words]
+    words = [w[0].upper() + w[1:] for w in words]
     class_name = "".join(words)
 
     if class_name[0].isdigit():
