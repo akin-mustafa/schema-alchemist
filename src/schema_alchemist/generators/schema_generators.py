@@ -139,7 +139,7 @@ class CoreSchemaGenerator:
             table_class_name = self.table_class_name_map[table]
             imports.add(make_in_file_obj(table_class_name))
             for column in self.reflected_data.columns[table]:
-                column_type = resolve_column_type(column["type"])
+                column_type = resolve_column_type(column, table_class_name)
 
                 if column["nullable"]:
                     imports.add(Optional)

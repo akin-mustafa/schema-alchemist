@@ -517,10 +517,13 @@ def make_in_file_obj(name: Union[str, Type]) -> str:
     return f"__file__.{name}"
 
 
-def resolve_column_type(column_type: TypeEngine) -> Any:
+def resolve_column_type(column: Dict[str, Any], table_class_name: str) -> Any:
     ColumnTypes = namedtuple(
         "ColumnTypes", ["sql_types", "sql_generic_types", "python_types"]
     )
+
+    column_type = column["type"]
+    column_name = column["name"]
 
     if isinstance(column_type, ARRAY):
         column_types = set()
@@ -546,6 +549,7 @@ def resolve_column_type(column_type: TypeEngine) -> Any:
     python_types = (annotated_type,)
 
     if isinstance(column_type, SqlEnum):
-        python_types = (make_in_file_obj(column_type.name), Enum)
+        name = column_type.name or f"{table_class_name}{column_name}"
+        python_types = (make_in_file_obj(name), Enum)
 
     return ColumnTypes(sql_types, sql_generic_types, python_types)
