@@ -1,3 +1,4 @@
+import logging
 from collections import defaultdict
 from functools import cached_property
 from typing import (
@@ -46,6 +47,8 @@ from schema_alchemist.utils import (
     make_in_file_obj,
     resolve_column_type,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class CoreSchemaGenerator:
@@ -396,8 +399,16 @@ class DeclarativeSchemaGenerator(CoreSchemaGenerator):
         nullable: bool = False,
         secondary_table: Optional[str] = None,
     ):
+        target_class = self.table_class_name_map.get(target_table)
+
+        if target_class is None:
+            logger.warning(
+                "Cannot create relationship for tables %s.%s and %s.%s"
+                % (main_table[0], main_table[1], target_table[0], target_table[1])
+            )
+            return
+
         main_class = self.table_class_name_map[main_table]
-        target_class = self.table_class_name_map[target_table]
         attribute_name, back_populates = self.resolve_relation_and_back_populates_names(
             main_table, target_table, relation_type
         )
