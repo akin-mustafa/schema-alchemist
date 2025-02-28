@@ -29,7 +29,7 @@ from sqlalchemy.orm import mapped_column, Mapped, relationship
 from sqlalchemy.testing.engines import mock_engine
 from sqlmodel import SQLModel, Field, Relationship
 
-from utils import ImportPathResolver
+from schema_alchemist.utils import ImportPathResolver
 
 
 @pytest.fixture

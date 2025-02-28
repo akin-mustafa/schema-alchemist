@@ -30,14 +30,14 @@ from sqlalchemy.orm import (
 )
 from sqlmodel import SQLModel, Field, Relationship
 
-from constants import SchemaTypeEnum, SQLRelationshipType
-from generators import (
+from schema_alchemist.constants import SchemaTypeEnum, SQLRelationshipType
+from schema_alchemist.generators import (
     DeclarativeTableGenerator,
     EnumGenerator,
     SQLModelTableGenerator,
     TableGenerator,
 )
-from utils import (
+from schema_alchemist.utils import (
     ImportPathResolver,
     convert_to_class_name,
     inflect_engine,

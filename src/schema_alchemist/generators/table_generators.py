@@ -18,17 +18,17 @@ from sqlalchemy import (
 )
 from sqlmodel import SQLModel
 
-from generators.base_generators import BaseGenerator
-from generators.column_generators import (
+from schema_alchemist.generators.base_generators import BaseGenerator
+from schema_alchemist.generators.column_generators import (
     ColumnGenerator,
     DeclarativeColumnGenerator,
     SQLModelColumnGenerator,
 )
-from generators.relationship_generators import (
+from schema_alchemist.generators.relationship_generators import (
     DeclarativeRelationGenerator,
     SQLModelRelationGenerator,
 )
-from utils import (
+from schema_alchemist.utils import (
     ImportPathResolver,
     convert_to_class_name,
     inflect_engine,

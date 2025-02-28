@@ -4,9 +4,9 @@ import pytest
 from sqlalchemy import Column, Table
 from sqlalchemy.orm import relationship, mapped_column, Mapped, DeclarativeBase
 
-from constants import SQLRelationshipType
-from generators import DeclarativeSchemaGenerator
-from utils import make_in_file_obj
+from schema_alchemist.constants import SQLRelationshipType
+from schema_alchemist.generators import DeclarativeSchemaGenerator
+from schema_alchemist.utils import make_in_file_obj
 
 
 def test_metadata_name(reflected_data, sorted_tables):

@@ -10,8 +10,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import ENUM
 
-from generators import SQLModelColumnGenerator
-from utils import make_in_file_obj
+from schema_alchemist.generators import SQLModelColumnGenerator
+from schema_alchemist.utils import make_in_file_obj
 
 
 @pytest.mark.parametrize(

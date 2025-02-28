@@ -2,9 +2,10 @@ from typing import Union
 
 from sqlalchemy import Engine, Connection
 
-from constants import SchemaTypeEnum
-from generators import SchemaGeneratorFactory
-from reflection import reflect, get_inspector
+
+from schema_alchemist.constants import SchemaTypeEnum
+from schema_alchemist.generators import SchemaGeneratorFactory
+from schema_alchemist.reflection import reflect, get_inspector
 
 
 def create_schema(

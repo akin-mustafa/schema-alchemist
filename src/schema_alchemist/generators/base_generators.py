@@ -11,7 +11,7 @@ from typing import (
     Type,
 )
 
-from utils import (
+from schema_alchemist.utils import (
     ImportPathResolver,
     DEFAULT_INDENTATION,
 )

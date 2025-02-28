@@ -2,7 +2,7 @@ import pytest
 from sqlalchemy import INTEGER, VARCHAR, TEXT, ARRAY
 from sqlalchemy.dialects.mysql import ENUM
 
-from generators import SQLModelTableGenerator
+from schema_alchemist.generators import SQLModelTableGenerator
 
 UserTable = """class User(SQLModel, table=True):
     __tablename__ = 'user'

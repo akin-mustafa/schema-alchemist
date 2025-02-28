@@ -4,8 +4,8 @@ import pytest
 
 from sqlalchemy import Enum as SqlAlchemyEnum
 
-from generators import EnumGenerator
-from utils import DEFAULT_INDENTATION
+from schema_alchemist.generators import EnumGenerator
+from schema_alchemist.utils import DEFAULT_INDENTATION
 
 
 def test_enum_generator_init(import_path_resolver):

@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Table, MetaData
 
-from generators import CoreSchemaGenerator
-from utils import make_in_file_obj
+from schema_alchemist.generators import CoreSchemaGenerator
+from schema_alchemist.utils import make_in_file_obj
 
 
 def test_sorted_table(reflected_data, sorted_tables):

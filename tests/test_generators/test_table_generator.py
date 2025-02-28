@@ -9,7 +9,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import ENUM
 
-from generators import TableGenerator
+from schema_alchemist.generators import TableGenerator
 
 
 def test_create_foreign_key_constraint(pre_configured_ipr):

@@ -1,7 +1,7 @@
 import pytest
 
-from constants import SQLRelationshipType
-from generators import DeclarativeRelationGenerator
+from schema_alchemist.constants import SQLRelationshipType
+from schema_alchemist.generators import DeclarativeRelationGenerator
 
 
 @pytest.mark.parametrize(

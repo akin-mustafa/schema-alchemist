@@ -5,8 +5,8 @@ from typing import List
 import pytest
 from sqlalchemy import Column, INTEGER, Integer, ARRAY, VARCHAR, String
 
-from constants import SQLRelationshipType
-from utils import (
+from schema_alchemist.constants import SQLRelationshipType
+from schema_alchemist.utils import (
     create_table_name,
     convert_to_class_name,
     create_enum,

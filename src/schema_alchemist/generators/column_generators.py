@@ -23,8 +23,8 @@ from sqlalchemy.orm import mapped_column, Mapped
 from sqlalchemy.sql.type_api import TypeEngine
 from sqlmodel import Field
 
-from generators.base_generators import BaseGenerator
-from utils import (
+from schema_alchemist.generators.base_generators import BaseGenerator
+from schema_alchemist.utils import (
     StringReprWrapper,
     ImportPathResolver,
     get_annotation_of_type,

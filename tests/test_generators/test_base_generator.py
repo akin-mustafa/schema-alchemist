@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import Column
 from sqlalchemy.orm import mapped_column
 
-from utils import StringReprWrapper, DEFAULT_INDENTATION
+from schema_alchemist.utils import StringReprWrapper, DEFAULT_INDENTATION
 from tests.test_generators.conftest import DummyGenerator
 
 

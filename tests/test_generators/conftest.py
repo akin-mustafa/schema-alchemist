@@ -2,7 +2,7 @@ import pytest
 from sqlalchemy import Column, INTEGER, VARCHAR, TIMESTAMP, Enum, TEXT, ARRAY, NUMERIC
 from sqlalchemy.engine.reflection import _ReflectionInfo
 
-from generators import BaseGenerator
+from schema_alchemist.generators import BaseGenerator
 
 
 class DummyGenerator(BaseGenerator):
