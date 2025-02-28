@@ -1,0 +1,1123 @@
+import abc
+import inspect
+import os
+from collections import defaultdict
+from copy import deepcopy
+from enum import Enum as PythonEnum
+from functools import cached_property
+from inspect import Parameter
+from typing import (
+    Optional,
+    List,
+    Type,
+    Any,
+    Dict,
+    Union,
+    Set,
+    Sequence,
+    Tuple,
+)
+
+from sqlalchemy import (
+    Computed,
+    Identity,
+    Column,
+    Index,
+    ForeignKeyConstraint,
+    ForeignKey,
+    CheckConstraint,
+    PrimaryKeyConstraint,
+    UniqueConstraint,
+    Table,
+    Enum as SQLAlchemyEnum,
+)
+from sqlalchemy.engine.interfaces import (
+    ReflectedColumn,
+)
+from sqlalchemy.engine.reflection import _ReflectionInfo
+from sqlalchemy.orm import mapped_column, Mapped, declarative_base, relationship
+from sqlalchemy.sql.type_api import TypeEngine
+from sqlmodel import Field, SQLModel, Relationship
+
+from constants import SchemaTypeEnum, SQLRelationshipType
+from utils import (
+    StringReprWrapper,
+    ImportPathResolver,
+    convert_to_class_name,
+    create_enum,
+    inflect_engine,
+    to_camel_case,
+    to_snake_case,
+)
+
+DEFAULT_IDENT_CHAR = os.getenv("DEFAULT_IDENT_CHAR", " ")
+DEFAULT_IDENT_MULTIPLIER = int(os.getenv("DEFAULT_IDENT_MULTIPLIER", 4))
+
+
+class BaseGenerator(abc.ABC):
+    klass: Any
+    positional_or_args_params: Optional[List[str]] = None
+
+    def __init__(
+        self,
+        import_path_resolver: ImportPathResolver,
+        indentation: Optional[str] = None,
+        *args,
+        **kwargs,
+    ):
+        self.indentation = indentation
+        self.import_path_resolver = import_path_resolver
+        self.collect_imports()
+
+    def collect_imports(self):
+        self.import_path_resolver.insert(self.klass)
+
+    @abc.abstractmethod
+    def generate(self, *args, **kwargs):
+        pass
+
+    @property
+    def indent(self):
+        indent = self.indentation or ""
+        return indent + self.default_indentation
+
+    @property
+    def default_indentation(self) -> str:
+        return DEFAULT_INDENTATION
+
+    def generate_function_definition(
+        self,
+        func,
+        parameters: Dict[str, Any],
+        override_positional_only: Optional[Sequence[str]] = None,
+    ) -> str:
+        """
+        Given a function or callable-like object plus a dictionary of named
+        parameters, produce something like:  MyFunc(x, y, z=1).
+
+        If positional_parameters are provided, those are extracted from the parameters
+        dictionary first.
+        """
+        func_signature = inspect.signature(func)
+        func_parameters = dict(func_signature.parameters)
+        override_positional_only = override_positional_only or []
+        params = []
+        has_var_arg = bool(
+            [
+                arg
+                for arg in func_parameters.values()
+                if arg.kind == Parameter.VAR_POSITIONAL
+            ]
+        )
+
+        for name in override_positional_only:
+            parameter = func_parameters.pop(name)
+            value = parameters.get(name, parameter.default)
+            params.append(value.__repr__())
+
+        for name, parameter in func_parameters.items():
+            value = parameters.get(name, parameter.default)
+            if (
+                parameter.kind == Parameter.POSITIONAL_ONLY
+                or name in override_positional_only
+            ) or (
+                parameter.kind == Parameter.POSITIONAL_OR_KEYWORD
+                and has_var_arg
+                and not override_positional_only
+                and value is not parameter.default
+            ):
+                params.append(value.__repr__())
+
+            elif (
+                parameter.kind == Parameter.VAR_POSITIONAL
+                and value is not parameter.default
+            ):
+                values = value or []
+                for val in values:
+                    params.append(val.__repr__())
+
+            elif value is not parameter.default:
+                params.append(f"{name}={value!r}")
+
+        params = ", ".join(params)
+        func_name = self.import_path_resolver.get_usage_name(func)
+        return f"{func_name}({params})"
+
+
+class ColumnGenerator(BaseGenerator):
+    """
+    Generator for producing a SQLAlchemy Column(...) declaration,
+    optionally with Identity(...) or Computed(...).
+    """
+
+    klass: Any = Column
+    positional_args: Optional[Sequence[str]] = ("name", "type_")
+
+    def __init__(
+        self,
+        reflected_column: Union[ReflectedColumn, Dict[str, Any]],
+        import_path_resolver: ImportPathResolver,
+        use_generic_types: bool = False,
+        *args,
+        **kwargs,
+    ):
+        self.reflected_column = reflected_column
+        self.foreign_key = self.reflected_column.pop("foreign_key", None)
+        self.parameters = deepcopy(reflected_column)
+        self.use_generic_types = use_generic_types
+        super().__init__(import_path_resolver, *args, **kwargs)
+        if self.indentation is not None:
+            self.indentation = self.indentation
+        else:
+            self.indentation = self.default_indentation
+
+    @property
+    def column_name(self) -> str:
+        return self.reflected_column["name"]
+
+    @property
+    def column_type(self) -> TypeEngine:
+        return self.reflected_column["type"]
+
+    @property
+    def column_type_class(self) -> TypeEngine:
+        return self.reflected_column["type"].__class__
+
+    @property
+    def column_type_as_generic(self) -> TypeEngine:
+        return self.reflected_column["type"].as_generic()
+
+    @property
+    def column_nullable(self) -> bool:
+        return self.reflected_column["nullable"]
+
+    @property
+    def column_python_type(self) -> Any:
+        if isinstance(self.column_type, SQLAlchemyEnum):
+            name = self.column_type.name
+            members = self.column_type.enums
+            enum = create_enum(name, members)
+            return enum
+        return self.column_type.python_type
+
+    def collect_imports(self) -> None:
+        super().collect_imports()
+
+        self.import_path_resolver.insert_many(
+            self.column_type_class,
+            self.column_python_type,
+            Optional,
+            self.column_type_as_generic.__class__,
+            Identity,
+            Computed,
+            ForeignKey,
+        )
+
+    def create_fk_constraint(self) -> str:
+        target_table = self.foreign_key["referred_table"]
+        column = self.foreign_key["referred_columns"][0]
+        column = f"{target_table}.{column}"
+        parameters = {
+            "column": column,
+            "name": self.foreign_key["name"],
+            "comment": self.foreign_key["comment"],
+            **self.foreign_key["options"],
+        }
+        return self.generate_function_definition(ForeignKey, parameters)
+
+    def __collect_var_args(self):
+        args = []
+
+        if self.reflected_column.get("identity"):
+            args.append(self.create_column_identity())
+
+        if self.foreign_key:
+            args.append(self.create_fk_constraint())
+
+        if self.reflected_column.get("computed"):
+            args.append(self.create_column_computed())
+
+        return args
+
+    def create_column_identity(self) -> Optional[StringReprWrapper]:
+        identity_params = self.reflected_column["identity"]
+        identity = self.generate_function_definition(Identity, identity_params)
+        return StringReprWrapper(identity)
+
+    def create_column_computed(self) -> Optional[StringReprWrapper]:
+        try:
+            computed_params = self.reflected_column["computed"]
+            computed = self.generate_function_definition(Computed, computed_params)
+            return StringReprWrapper(computed)
+        except KeyError:
+            return None
+
+    def _update_parameters(self) -> None:
+        """
+        Modify the self.parameters dictionary to align with typical Column() kwargs:
+          - 'default' → 'server_default'
+          - 'identity' → Identity(...) object (if present)
+          - 'computed' → Computed(...) object (if present)
+        """
+        self.parameters.pop("type", None)
+        self.parameters["server_default"] = self.parameters.pop("default", None)
+        self.parameters["type_"] = self.column_type
+
+        self.parameters["args"] = self.__collect_var_args()
+
+    def format_function_call(self) -> str:
+        return self.generate_function_definition(
+            self.klass, self.parameters, self.positional_args
+        )
+
+    def generate(self) -> str:
+        """Produce the final Column(...) string, e.g. '    Column("id", Integer, ...)'."""
+        self._update_parameters()
+        return f"{self.indentation}{self.format_function_call()}"
+
+
+class DeclarativeColumnGenerator(ColumnGenerator):
+    """
+    Produces a declarative ORM style mapped_column(...) instead of plain Column(...).
+    """
+
+    klass = mapped_column
+
+    def collect_imports(self) -> None:
+        super().collect_imports()
+        self.import_path_resolver.insert(Mapped)
+
+    @property
+    def python_annotation(self) -> str:
+        """
+        String annotation for a typed column, e.g. 'Optional[int]' if it's nullable,
+        otherwise 'int'.
+        """
+        type_ = self.column_python_type
+
+        type_name = self.import_path_resolver.get_usage_name(type_)
+
+        if self.column_nullable:
+            optional = self.import_path_resolver.get_usage_name(Optional)
+            return f"{optional}[{type_name}]"
+
+        return type_name
+
+    def generate(self):
+        """
+        Example output:
+            id: Mapped[Optional[int]] = mapped_column("id", Integer, ...)
+        """
+        self._update_parameters()
+        mapped_import_name = self.import_path_resolver.get_usage_name(Mapped)
+        return (
+            f"{self.indentation}{self.column_name}: "
+            f"{mapped_import_name}[{self.python_annotation}] = "
+            f"{self.format_function_call()}"
+        )
+
+
+class SQLModelColumnGenerator(DeclarativeColumnGenerator):
+    """
+    Produces a sqlmodel.Field(...) that internally wraps a Column(...).
+    """
+
+    klass = Field
+    positional_args = None
+
+    def generate(self):
+        """
+        Example output:
+
+            id: Optional[int] = Field(sa_column=Column("id", Integer, ...))
+        """
+        sa_column = ColumnGenerator(
+            self.reflected_column, self.import_path_resolver, indentation=""
+        )
+        sa_column = sa_column.generate()
+        return (
+            f"{self.indentation}{self.column_name}: "
+            f"{self.python_annotation} = "
+            f"{self.klass.__name__}(sa_column={sa_column})"
+        )
+
+
+class DeclarativeRelationGenerator(BaseGenerator):
+    klass = relationship
+
+    def __init__(
+        self,
+        attribute_name: str,
+        target_class: str,
+        back_populates: str,
+        relation_type: SQLRelationshipType,
+        import_path_resolver: ImportPathResolver,
+        nullable: bool = False,
+        secondary_table: Any = None,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(import_path_resolver, *args, **kwargs)
+        self.attribute_name = attribute_name
+        self.target_class = target_class
+        self.back_populates = back_populates
+        self.nullable = nullable
+        self.secondary = secondary_table
+        self.relation_type = relation_type
+
+    def collect_imports(self):
+        super().collect_imports()
+        self.import_path_resolver.insert_many(Mapped, List, Optional)
+
+    @property
+    def python_annotation(self) -> str:
+        annotation = f"'{self.target_class}'"
+
+        if self.nullable:
+            optional = self.import_path_resolver.get_usage_name(Optional)
+            annotation = f"{optional}[{annotation}]"
+
+        if self.relation_type in (SQLRelationshipType.m2o, SQLRelationshipType.m2m):
+            list_usage = self.import_path_resolver.get_usage_name(List)
+            annotation = f"{list_usage}[{annotation}]"
+
+        return annotation
+
+    @property
+    def parameters(self) -> Dict[str, Any]:
+        secondary = self.secondary
+        if secondary:
+            secondary = StringReprWrapper(secondary)
+
+        return {
+            "secondary": secondary,
+            "back_populates": self.back_populates,
+        }
+
+    def generate_relation(self):
+        return self.generate_function_definition(self.klass, self.parameters)
+
+    def generate(self, *args, **kwargs) -> str:
+        relation = self.generate_relation()
+        mapped_import_name = self.import_path_resolver.get_usage_name(Mapped)
+        return (
+            f"{self.indent}{self.attribute_name}: "
+            f"{mapped_import_name}[{self.python_annotation}] = {relation}"
+        )
+
+
+class SQLModelRelationGenerator(DeclarativeRelationGenerator):
+    klass = Relationship
+
+    @property
+    def parameters(self) -> Dict[str, Any]:
+        secondary = self.secondary
+        if secondary:
+            secondary = StringReprWrapper(secondary)
+        return {
+            "back_populates": self.back_populates,
+            "link_model": secondary,
+        }
+
+    def generate(self, *args, **kwargs) -> str:
+        relation = self.generate_function_definition(Relationship, self.parameters)
+        return (
+            f"{self.indent}{self.attribute_name}: {self.python_annotation} = {relation}"
+        )
+
+
+class TableGenerator(BaseGenerator):
+    """
+    Example generated code:
+
+        MyTable = Table("my_table", metadata,
+            Column("id", Integer, primary_key=True),
+            ...,
+            schema="public",
+            ...
+        )
+    """
+
+    klass = Table
+    column_generator = ColumnGenerator
+
+    def __init__(
+        self,
+        name: str,
+        metadata_name: str,
+        import_path_resolver: ImportPathResolver,
+        schema: Optional[str] = None,
+        columns: Optional[List[Dict[str, Any]]] = None,
+        comment: Optional[Dict[str, Optional[str]]] = None,
+        check_constraints: Optional[List[Dict[str, Any]]] = None,
+        foreign_keys: Optional[List[Dict[str, Any]]] = None,
+        indexes: Optional[List[Dict[str, Any]]] = None,
+        primary_key: Optional[Dict[str, Any]] = None,
+        unique_constraints: Optional[List[Dict[str, Any]]] = None,
+        relationships: Optional[List[Dict[str, Any]]] = None,
+        *args,
+        **kwargs,
+    ):
+        self.name = name
+        self.metadata_name = metadata_name
+        self.schema = schema
+        self.columns = columns or []
+        self.comment = comment
+        self.check_constraints = check_constraints
+        self.foreign_keys = foreign_keys
+        self.indexes = indexes
+        self.primary_key = primary_key
+        self.unique_constraints = unique_constraints
+        self.relationships = relationships
+        super().__init__(import_path_resolver, *args, **kwargs)
+        self.generators = [
+            self.column_generator(
+                self.enrich_column(column),
+                import_path_resolver=self.import_path_resolver,
+                indentation=self.indent,
+            )
+            for column in self.columns
+        ]
+
+    def collect_imports(self):
+        super().collect_imports()
+        classes = [self.klass, self.table_class_name]
+
+        if self.foreign_keys:
+            classes.extend([ForeignKeyConstraint, ForeignKey])
+        if self.primary_key:
+            classes.append(PrimaryKeyConstraint)
+        if self.unique_constraints:
+            classes.append(UniqueConstraint)
+        if self.indexes:
+            classes.append(Index)
+        if self.check_constraints:
+            classes.append(CheckConstraint)
+
+        self.import_path_resolver.insert_many(*classes)
+
+    def create_fk_constraint(self, foreign_key: Dict[str, Any]) -> str:
+        target_table = foreign_key["referred_table"]
+        referred_columns = [
+            f"{target_table}.{col}" for col in foreign_key["referred_columns"]
+        ]
+        columns = foreign_key["constrained_columns"]
+        name = foreign_key["name"]
+        comment = foreign_key["comment"]
+        parameters = {
+            "columns": columns,
+            "refcolumns": referred_columns,
+            "name": name,
+            "comment": comment,
+            **foreign_key["options"],
+        }
+        return self.generate_function_definition(ForeignKeyConstraint, parameters)
+
+    def create_index_constraint(self, parameters: Dict[str, Any]) -> str:
+        parameters = deepcopy(parameters)
+        parameters["expressions"] = parameters.pop("column_names")
+        parameters["dialect_kw"] = parameters.pop("dialect_options")
+        parameters.pop("include_columns", None)
+        parameters.pop("duplicates_constraint", None)
+        parameters.pop("dialect_kw", None)
+
+        return self.generate_function_definition(Index, parameters)
+
+    def create_check_constraint(self, parameters: Dict[str, Any]) -> str:
+        return self.generate_function_definition(CheckConstraint, parameters)
+
+    def create_pk_constraint(self, parameters: Dict[str, Any]) -> str:
+        parameters = deepcopy(parameters)
+        parameters["columns"] = parameters.pop("constrained_columns")
+        return self.generate_function_definition(PrimaryKeyConstraint, parameters)
+
+    def create_unique_constraint(self, parameters: Dict[str, Any]) -> str:
+        parameters = deepcopy(parameters)
+        parameters["columns"] = parameters.pop("column_names")
+        return self.generate_function_definition(UniqueConstraint, parameters)
+
+    def create_constraints(self) -> List[str]:
+        constraints = []
+
+        if self.primary_key:
+            constraints.append(self.create_pk_constraint(self.primary_key))
+
+        for fk in self.foreign_keys:
+            constraints.append(self.create_fk_constraint(fk))
+
+        for idx in self.indexes:
+            if idx.get("duplicates_constraint"):
+                continue
+            constraints.append(self.create_index_constraint(idx))
+
+        for uni in self.unique_constraints:
+            constraints.append(self.create_unique_constraint(uni))
+
+        for cc in self.check_constraints:
+            constraints.append(self.create_check_constraint(cc))
+
+        return constraints
+
+    @cached_property
+    def table_class_name(self):
+        singular_name = inflect_engine.to_singular(self.name)
+        return convert_to_class_name(singular_name)
+
+    @cached_property
+    def foreignkey_column(self) -> Dict[str, Dict[str, Any]]:
+        return {
+            fk["constrained_columns"][0]: fk
+            for fk in self.foreign_keys
+            if len(fk["constrained_columns"]) == 1
+        }
+
+    @cached_property
+    def indexed_column(self) -> Set[str]:
+        return {
+            index["column_names"][0]
+            for index in self.indexes
+            if len(index["column_names"]) == 1 and not index["unique"]
+        }
+
+    @cached_property
+    def unique_columns(self) -> Set[str]:
+        return {
+            index["column_names"][0]
+            for index in self.unique_constraints
+            if len(index["column_names"]) == 1
+        }
+
+    @cached_property
+    def primary_key_columns(self) -> Set[str]:
+        if not self.primary_key:
+            return set()
+
+        return {col for col in self.primary_key["constrained_columns"]}
+
+    def enrich_column(self, column: dict[str, Any]):
+        name = column["name"]
+        column["index"] = name in self.indexed_column or None
+        column["unique"] = name in self.unique_columns or None
+        column["primary_key"] = name in self.primary_key_columns or False
+        column["foreign_key"] = self.foreignkey_column.get(name)
+        return column
+
+    def generate_columns(self):
+        return ",\n".join([gen.generate() for gen in self.generators])
+
+    def get_table_args_schema(self):
+        return f"schema = '{self.schema}'"
+
+    def create_table_args(self) -> str:
+        """
+        Returns string like:
+
+            PrimaryKeyConstraint("id"),
+            CheckConstraint("..."),
+            schema="public"
+        """
+
+        table_args = self.create_constraints()
+
+        if self.schema:
+            table_args.append(self.get_table_args_schema())
+
+        return ",\n".join([f"{self.indent}{con}" for con in table_args if con])
+
+    def generate_table(self):
+        parameters = [
+            self.generate_columns(),
+            self.create_table_args(),
+        ]
+
+        return ",\n".join(parameters)
+
+    def generate(self):
+        table_data = self.generate_table()
+        name = self.import_path_resolver.get_usage_name(self.klass)
+        return (
+            f"{self.table_class_name} = {name}("
+            f"'{self.name}', {self.metadata_name},\n{table_data}\n)"
+        )
+
+
+class DeclarativeTableGenerator(TableGenerator):
+    """
+    Generates a declarative-style class:
+
+        class SomeTable(Base):
+            __tablename__ = "some_table"
+            __table_args__ = (PrimaryKeyConstraint("id"), ..., {"schema": "public"})
+
+            id: Mapped[int] = mapped_column("id", Integer, primary_key=True)
+            ...
+
+    Unlike the base TableGenerator, we won't emit Table(...) calls directly;
+    instead, we produce a class definition using mapped_column(...).
+    """
+
+    column_generator = DeclarativeColumnGenerator
+    relations_generator = DeclarativeRelationGenerator
+
+    @property
+    def plus_one_indent(self):
+        return self.indent + self.default_indentation
+
+    def collect_imports(self):
+        """
+        Besides what TableGenerator does, we may also need to ensure the 'Base' (or
+        some user-defined base class) is imported. That depends on your broader code
+        context. For a fully self-contained generator, you might do something like:
+
+            self.import_path_resolver.insert(declarative_base)  # or your own Base class
+        """
+        super().collect_imports()
+        self.import_path_resolver.insert(declarative_base)
+
+    def create_table_definition(self):
+        return [f"class {self.table_class_name}({self.metadata_name}):"]
+
+    def generate_relationships(self) -> str:
+        relationships = []
+        for relation in self.relationships:
+            rg = self.relations_generator(
+                import_path_resolver=self.import_path_resolver,
+                indentation=self.indentation,
+                **relation,
+            )
+            relationships.append(rg.generate())
+
+        return ",\n".join(relationships)
+
+    def generate_columns(self):
+        return "\n".join([gen.generate() for gen in self.generators])
+
+    def generate(self) -> str:
+        """
+        Produce something like:
+
+            class MyTableName(Base):
+                __tablename__ = "my_table"
+                __table_args__ = (PrimaryKeyConstraint("id"), ..., {"schema": "public"})
+
+                id: Mapped[int] = mapped_column("id", Integer, primary_key=True)
+                ...
+        """
+        lines = self.create_table_definition()
+        table_args = self._create_table_args()
+
+        if table_args:
+            lines.append(table_args)
+
+        lines.append(self.generate_columns())
+
+        if self.relationships:
+            lines.extend(["", self.generate_relationships()])
+
+        return "\n".join(lines)
+
+    def _create_table_args(self) -> str:
+        """
+        In standard SQLAlchemy declarative, __table_args__ can be a tuple of constraints
+        plus an optional dictionary for extra arguments like 'schema'.
+        E.g.:
+
+            __table_args__ = (
+                PrimaryKeyConstraint("id"),
+                CheckConstraint("price > 0"),
+                {"schema": "public"}
+            )
+        """
+        lines = [f"{self.indent}__tablename__ = {self.name!r}"]
+
+        constraint_list = self.create_constraints()
+
+        extra_kwargs = {}
+        if self.schema:
+            extra_kwargs["schema"] = self.schema
+        comment = self.comment.get("text")
+        if comment:
+            extra_kwargs["comment"] = comment
+
+        items = []
+        items.extend(constraint_list)
+        if extra_kwargs:
+            dict_str = ", ".join(f"{k!r}: {v!r}" for k, v in extra_kwargs.items())
+            items.append(f"{{{dict_str}}}")
+        join_pattern = f",\n{self.plus_one_indent}"
+
+        table_args = join_pattern.join(items)
+
+        lines.append(
+            f"{self.indent}__table_args__ = "
+            f"(\n{self.plus_one_indent}{table_args}\n{self.indent})"
+        )
+
+        return "\n".join(lines)
+
+
+class SQLModelTableGenerator(DeclarativeTableGenerator):
+    """
+    Generates a SQLModel-based class, e.g.:
+
+        class MyTable(SQLModel, table=True):
+            __tablename__ = "my_table"
+            __table_args__ = (
+                PrimaryKeyConstraint("id"),
+                {"schema": "public"}
+            )
+
+            id: int = Field(sa_column=Column("id", Integer, primary_key=True))
+            name: Optional[str] = Field(sa_column=Column("name", String, nullable=True))
+            ...
+    """
+
+    column_generator = SQLModelColumnGenerator
+    relations_generator = SQLModelRelationGenerator
+
+    def collect_imports(self):
+        """
+        Ensure the necessary imports for SQLModel-based classes are registered,
+        in addition to any constraints, etc. that TableGenerator collects.
+        """
+        super().collect_imports()
+        self.import_path_resolver.insert(SQLModel)
+
+    def create_table_definition(self):
+        return [f"class {self.table_class_name}(SQLModel, table=True):"]
+
+
+class EnumGenerator:
+    def __init__(self, name, items, import_path_resolver, indentation=None):
+        default_indent = DEFAULT_INDENTATION
+        self.import_path_resolver = import_path_resolver
+        self.indentation = default_indent if indentation is None else indentation
+        self.name = name
+        self.items = items
+        import_path_resolver.insert(PythonEnum)
+
+    def generate(self):
+        enum_usage = self.import_path_resolver.get_usage_name(PythonEnum)
+        lines = [f"class {self.name}({enum_usage}):"]
+        for item in self.items:
+            lines.append(f"{self.indentation}{item} = {item!r}")
+        return "\n".join(lines)
+
+
+class SchemaGenerator:
+    def __init__(
+        self,
+        reflected_data: _ReflectionInfo,
+        sorted_tables_and_fks: List[Tuple[str, List[Tuple[str, str]]]],
+        schema_type: SchemaTypeEnum = SchemaTypeEnum.table,
+        schema: Optional[str] = None,
+        add_comments: bool = False,
+        create_table_args: bool = False,
+        use_camel_case: bool = False,
+    ):
+        self.reflected_data = reflected_data
+        self.schema_type = schema_type
+        self.sorted_tables_and_fks = sorted_tables_and_fks
+        self.schema = schema
+        self.create_table_args = create_table_args
+        self.add_comments = add_comments
+        self.use_camel_case = use_camel_case
+
+        self.tables = list(self.reflected_data.columns.keys())
+
+        self.import_path_resolver = ImportPathResolver()
+
+        self.relationships = defaultdict(list)
+        self.relation_names_map = defaultdict(list)
+
+        self.table_column_map = defaultdict(set)
+
+        self.table_class_name_map = {
+            table: convert_to_class_name(inflect_engine.to_singular(table[1]))
+            for table in self.sorted_tables
+        }
+
+        self.table_pk_map = {
+            table: pk_data["constrained_columns"]
+            for table, pk_data in self.reflected_data.pk_constraint.items()
+        }
+
+        self.table_unique_cols_map = defaultdict(list)
+        for table, values in self.reflected_data.unique_constraints.items():
+            for value in values:
+                self.table_unique_cols_map[table].append(value["column_names"])
+
+        self.nullable_column_map = defaultdict(set)
+
+        self.enums = []
+
+        for table, columns in self.reflected_data.columns.items():
+            for column in columns:
+                column_name = column["name"]
+                column_type = column["type"]
+                self.table_column_map[table].add(column_name)
+
+                if column["nullable"]:
+                    self.nullable_column_map[table].add(column_name)
+
+                if isinstance(column["type"], SQLAlchemyEnum):
+                    name = column_type.name
+                    members = column_type.enums
+                    self.enums.append((name, members))
+                    self.import_path_resolver.insert(name)
+
+    @cached_property
+    def sorted_tables(self) -> List[Tuple[Optional[str], str]]:
+        return [
+            (self.schema, t[0]) for t in self.sorted_tables_and_fks if t[0] is not None
+        ]
+
+    def get_generator_class(self) -> Type[TableGenerator]:
+        if self.schema_type == SchemaTypeEnum.declarative:
+            return DeclarativeTableGenerator
+        if self.schema_type == SchemaTypeEnum.sqlmodel:
+            return SQLModelTableGenerator
+        return TableGenerator
+
+    @cached_property
+    def metadata_name(self) -> str:
+        if self.schema_type == SchemaTypeEnum.table:
+            return "metadata"
+        return "Base"
+
+    def resolve_m2m_relationship(self, table, fks):
+        if not fks:
+            return None
+
+        pk_columns = set(self.table_pk_map[table])
+        column_names = self.table_column_map[table]
+        fk_columns = set()
+        target_tables = set()
+        for fk in fks:
+            fk_columns.update({col for col in fk["constrained_columns"]})
+            target_tables.add((fk["referred_schema"], fk["referred_table"]))
+
+        if fk_columns == column_names:
+            return target_tables
+
+        non_pk_columns = column_names - pk_columns
+        if non_pk_columns == fk_columns:
+            return target_tables
+
+        return None
+
+    def resolve_relationship_type_of_fk(self, table, fk):
+        fk_columns = fk["constrained_columns"]
+
+        if (
+            fk_columns in self.table_unique_cols_map[table]
+            or fk_columns == self.table_pk_map[table]
+        ):
+            return SQLRelationshipType.o2o
+
+        return SQLRelationshipType.o2m
+
+    @cached_property
+    def singular_suffixes(self) -> List[str]:
+        if self.use_camel_case:
+            return ["Detail", "Instance", "Data"]
+        return ["_detail", "_instance", "_data"]
+
+    @cached_property
+    def plural_suffixes(self) -> List[str]:
+        if self.use_camel_case:
+            return ["Set", "List", "Data"]
+        return ["_set", "_list", "_data"]
+
+    def get_suffixes(self, singular: bool = True) -> List[str]:
+        if singular:
+            return self.singular_suffixes
+        return self.plural_suffixes
+
+    def has_attribute(self, attribute, table):
+        columns = self.table_column_map[table]
+        relationships = self.relation_names_map[table]
+        return attribute in columns or attribute in relationships
+
+    def find_unique_key_for_relation_attribute(
+        self,
+        attribute_name,
+        main_tabel,
+        target_table,
+        use_singular_suffixes,
+    ) -> str:
+
+        if self.has_attribute(attribute_name, main_tabel):
+            suffixes = self.get_suffixes(use_singular_suffixes)
+            attr_name_singular = inflect_engine.to_singular(attribute_name)
+            new_name = None
+
+            for suffix in suffixes:
+                tmp_attribute_name = f"{attr_name_singular}{suffix}"
+
+                if not self.has_attribute(tmp_attribute_name, main_tabel):
+                    new_name = tmp_attribute_name
+                    break
+
+            # raise error if no attribute name found
+            if new_name is None:
+                raise ValueError(
+                    "No suitable relationship attribute "
+                    "name found for {} in Table: {}".format(
+                        target_table[1], main_tabel[1]
+                    )
+                )
+
+            return new_name
+
+        return attribute_name
+
+    def convert_to_relation_attribute_name(
+        self, main_tabel, target_table, relation_type
+    ):
+        attribute_name = inflect_engine.to_singular(target_table[1].lower())
+        use_singular_suffixes = True
+
+        if relation_type in (SQLRelationshipType.m2o, SQLRelationshipType.m2m):
+            use_singular_suffixes = False
+            attribute_name = inflect_engine.to_plural(attribute_name)
+
+        attribute_name = self.find_unique_key_for_relation_attribute(
+            attribute_name,
+            main_tabel,
+            target_table,
+            use_singular_suffixes,
+        )
+
+        if self.use_camel_case:
+            return to_camel_case(attribute_name)
+
+        return to_snake_case(attribute_name)
+
+    def resolve_relation_and_back_populates_names(
+        self, main_table, target_table, relation_type: SQLRelationshipType
+    ) -> Tuple[str, str]:
+
+        attribute_name = self.convert_to_relation_attribute_name(
+            main_table, target_table, relation_type
+        )
+
+        back_populates = self.convert_to_relation_attribute_name(
+            target_table, main_table, relation_type.reversed_relationship
+        )
+
+        return attribute_name, back_populates
+
+    def create_relationship_metadata(
+        self,
+        main_table: Tuple[Optional[str], str],
+        target_table: Tuple[Optional[str], str],
+        relation_type: SQLRelationshipType,
+        nullable: bool = False,
+        secondary_table: Optional[str] = None,
+    ):
+        main_class = self.table_class_name_map[main_table]
+        target_class = self.table_class_name_map[target_table]
+        attribute_name, back_populates = self.resolve_relation_and_back_populates_names(
+            main_table, target_table, relation_type
+        )
+
+        relationship_data = {
+            "attribute_name": attribute_name,
+            "target_class": target_class,
+            "back_populates": back_populates,
+            "relation_type": relation_type,
+            "nullable": nullable,
+            "secondary_table": secondary_table,
+        }
+        reverse_relation_data = {
+            "attribute_name": back_populates,
+            "target_class": main_class,
+            "back_populates": attribute_name,
+            "relation_type": relation_type.reversed_relationship,
+            "nullable": nullable,
+            "secondary_table": secondary_table,
+        }
+        if relationship_data not in self.relationships[main_table]:
+            self.relationships[main_table].append(relationship_data)
+
+        if reverse_relation_data not in self.relationships[target_table]:
+            self.relationships[target_table].append(reverse_relation_data)
+
+    def handle_m2m_relations(self, secondary_table, tables):
+        secondary_class = self.table_class_name_map[secondary_table]
+        for table in sorted(tables, key=lambda t: t[1]):
+            target_tables = tables - {table}
+            for target_table in sorted(target_tables, key=lambda t: t[1]):
+                self.create_relationship_metadata(
+                    table,
+                    target_table,
+                    SQLRelationshipType.m2m,
+                    nullable=False,
+                    secondary_table=secondary_class,
+                )
+
+    def resolve_relationships(self):
+        for main_table, fks in self.reflected_data.foreign_keys.items():
+            target_tables = self.resolve_m2m_relationship(main_table, fks)
+
+            if target_tables:
+                self.handle_m2m_relations(main_table, target_tables)
+                continue
+
+            for fk in fks:
+                target_table = (fk["referred_schema"], fk["referred_table"])
+                relation_type = self.resolve_relationship_type_of_fk(main_table, fk)
+
+                fk_columns = fk["constrained_columns"]
+                nullable = set(fk_columns).issubset(
+                    set(self.nullable_column_map[main_table])
+                )
+
+                self.create_relationship_metadata(
+                    main_table,
+                    target_table,
+                    relation_type,
+                    nullable,
+                    None,
+                )
+
+    def generate(self) -> str:
+        generator_class = self.get_generator_class()
+
+        columns = self.reflected_data.columns
+        table_comment = self.reflected_data.table_comment
+        check_constraints = self.reflected_data.check_constraints
+        foreign_keys = self.reflected_data.foreign_keys
+        indexes = self.reflected_data.indexes
+        pk_constraint = self.reflected_data.pk_constraint
+        unique_constraints = self.reflected_data.unique_constraints
+
+        if not self.schema_type == SchemaTypeEnum.table:
+            self.resolve_relationships()
+
+        enums = [
+            EnumGenerator(name, items, self.import_path_resolver).generate()
+            for name, items in self.enums
+        ]
+
+        tables_generators = [
+            generator_class(
+                name=table[1],
+                import_path_resolver=self.import_path_resolver,
+                schema=self.schema,
+                metadata_name=self.metadata_name,
+                columns=columns[table],
+                comment=table_comment[table],
+                check_constraints=check_constraints[table],
+                foreign_keys=foreign_keys[table],
+                indexes=indexes[table],
+                primary_key=pk_constraint[table],
+                unique_constraints=unique_constraints[table],
+                relationships=self.relationships[table],
+            )
+            for table in self.sorted_tables
+            if not self.tables or table in self.tables
+        ]
+        tables = [tg.generate() for tg in tables_generators]
+        return "\n\n\n".join([*enums, *tables])
