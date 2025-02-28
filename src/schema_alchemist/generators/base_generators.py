@@ -121,8 +121,5 @@ class EnumGenerator:
         lines = [f"class {self.name}({enum_usage}):"]
         for item in self.items:
             attr_name = convert_to_attribute_name(item)
-            attr_name = self.import_path_resolver.get_usage_name(
-                make_in_file_obj(attr_name)
-            )
             lines.append(f"{self.indentation}{attr_name} = {item!r}")
         return "\n".join(lines)

@@ -176,9 +176,9 @@ def test_make_in_file_obj(input_val, expected):
 @pytest.mark.parametrize(
     "data, expected_sql_types, expected_sql_generic_types, expected_python_types",
     (
-        (INTEGER(), (INTEGER,), (Integer,), (int,)),
+        ({"name": "test", "type": INTEGER()}, (INTEGER,), (Integer,), (int,)),
         (
-            ARRAY(VARCHAR()),
+            {"name": "test", "type": ARRAY(VARCHAR())},
             (
                 VARCHAR,
                 ARRAY,
@@ -194,7 +194,7 @@ def test_make_in_file_obj(input_val, expected):
 def test_resolve_column_type(
     data, expected_sql_types, expected_sql_generic_types, expected_python_types
 ):
-    result = resolve_column_type(data)
+    result = resolve_column_type(data, "test")
     assert set(result.sql_types) == set(expected_sql_types)
     assert set(result.sql_generic_types) == set(expected_sql_generic_types)
     assert set(result.python_types) == set(expected_python_types)
