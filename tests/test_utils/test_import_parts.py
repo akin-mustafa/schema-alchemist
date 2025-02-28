@@ -2,7 +2,7 @@ import os
 import pytest
 
 from sqlalchemy import Column
-from utils import ImportParts, empty
+from schema_alchemist.utils import ImportParts, empty
 from tests.test_utils.helpers import TestClass, outer_func
 
 

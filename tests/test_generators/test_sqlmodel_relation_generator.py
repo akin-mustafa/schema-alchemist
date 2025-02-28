@@ -1,8 +1,8 @@
 import pytest
 
-from constants import SQLRelationshipType
-from generators import SQLModelRelationGenerator
-from utils import StringReprWrapper
+from schema_alchemist.constants import SQLRelationshipType
+from schema_alchemist.generators import SQLModelRelationGenerator
+from schema_alchemist.utils import StringReprWrapper
 
 
 @pytest.mark.parametrize(

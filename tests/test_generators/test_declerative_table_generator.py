@@ -2,8 +2,8 @@ import pytest
 from sqlalchemy import INTEGER, VARCHAR, TEXT, ARRAY
 from sqlalchemy.dialects.mysql import ENUM
 
-from generators import DeclarativeTableGenerator
-from utils import make_in_file_obj
+from schema_alchemist.generators import DeclarativeTableGenerator
+from schema_alchemist.utils import make_in_file_obj
 
 UserTable = """class User(Base):
     __tablename__ = 'user'

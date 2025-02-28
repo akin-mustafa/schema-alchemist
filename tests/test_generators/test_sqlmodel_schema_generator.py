@@ -4,8 +4,8 @@ import pytest
 from sqlalchemy import Column
 from sqlmodel import Relationship, Field, SQLModel
 
-from constants import SQLRelationshipType
-from generators import SQLModelSchemaGenerator
+from schema_alchemist.constants import SQLRelationshipType
+from schema_alchemist.generators import SQLModelSchemaGenerator
 
 
 def test_metadata_name(reflected_data, sorted_tables):

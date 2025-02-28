@@ -9,9 +9,9 @@ from typing import (
 from sqlalchemy.orm import Mapped, relationship
 from sqlmodel import Relationship
 
-from constants import SQLRelationshipType
-from generators.base_generators import BaseGenerator
-from utils import ImportPathResolver, StringReprWrapper
+from schema_alchemist.constants import SQLRelationshipType
+from schema_alchemist.generators.base_generators import BaseGenerator
+from schema_alchemist.utils import ImportPathResolver, StringReprWrapper
 
 
 class DeclarativeRelationGenerator(BaseGenerator):

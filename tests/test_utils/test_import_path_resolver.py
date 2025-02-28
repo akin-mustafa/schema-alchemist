@@ -5,7 +5,7 @@ import pytest
 import sqlalchemy
 from sqlalchemy import Column as SQLColumn, Integer
 
-from utils import ImportPathResolver, TrieNode
+from schema_alchemist.utils import ImportPathResolver, TrieNode
 from tests.test_utils.helpers import TestClass, Column
 
 
@@ -26,7 +26,7 @@ from tests.test_utils.helpers import TestClass, Column
         (
             [ImportPathResolver, "typing.Any", "src.utils.TrieNode"],
             [
-                (["utils"], ["ImportPathResolver"]),
+                (["schema_alchemist", "utils"], ["ImportPathResolver"]),
                 (["typing"], ["Any"]),
                 (["src", "utils"], ["TrieNode"]),
             ],
@@ -70,7 +70,11 @@ def test_find_lcp_parts_for_import(initial_values, expected_first_keys):
         ),
         (
             ImportPathResolver,
-            {"module": "utils", "main_class": "ImportPathResolver", "inner": ""},
+            {
+                "module": "schema_alchemist.utils",
+                "main_class": "ImportPathResolver",
+                "inner": "",
+            },
         ),
     ],
 )

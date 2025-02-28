@@ -14,8 +14,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.mysql import ENUM
 
-from generators import ColumnGenerator
-from utils import StringReprWrapper
+from schema_alchemist.generators import ColumnGenerator
+from schema_alchemist.utils import StringReprWrapper
 
 
 def test_create_fk_constraint(pre_configured_ipr):
