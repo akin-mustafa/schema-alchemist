@@ -43,11 +43,13 @@ class ColumnGenerator(BaseGenerator):
         self,
         reflected_column: Union[ReflectedColumn, Dict[str, Any]],
         import_path_resolver: ImportPathResolver,
+        table_class_name: str,
         use_generic_types: bool = False,
         *args,
         **kwargs,
     ):
         self.reflected_column = reflected_column
+        self.table_class_name = table_class_name
         self.foreign_key = self.reflected_column.pop("foreign_key", None)
         self.parameters = deepcopy(reflected_column)
         self.use_generic_types = use_generic_types
@@ -86,7 +88,7 @@ class ColumnGenerator(BaseGenerator):
     @property
     def column_python_type(self) -> Any:
         if isinstance(self.column_type, SQLAlchemyEnum):
-            return self.column_type.name
+            return self.column_type.name or f"{self.table_class_name}{self.column_name}"
         return self.column_type.python_type
 
     def create_fk_constraint(self) -> StringReprWrapper:
@@ -213,7 +215,10 @@ class SQLModelColumnGenerator(DeclarativeColumnGenerator):
 
     def _update_parameters(self) -> Dict[str, Any]:
         sa_column = ColumnGenerator(
-            self.reflected_column, self.import_path_resolver, indentation=""
+            self.reflected_column,
+            self.import_path_resolver,
+            self.table_class_name,
+            indentation="",
         )
         parameters = {"sa_column": StringReprWrapper(sa_column.generate())}
         if self.column_nullable or self.parameters.get("primary_key"):

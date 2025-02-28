@@ -39,8 +39,9 @@ def test_enum_generator_init(import_path_resolver):
         ),
         (
             "SwitchEnum",
-            ["open", "closed"],
-            "class SwitchEnum(Enum):\n    open = 'open'\n    closed = 'closed'",
+            ["open", "closed", "test this"],
+            "class SwitchEnum(Enum):\n    open = 'open'\n    closed = 'closed'\n    "
+            "test_this = 'test this'",
         ),
     ),
 )
