@@ -83,7 +83,7 @@ class ColumnGenerator(BaseGenerator):
 
     @property
     def column_nullable(self) -> bool:
-        return self.reflected_column["nullable"]
+        return self.reflected_column.get("nullable")
 
     @property
     def column_python_type(self) -> Any:
@@ -95,11 +95,12 @@ class ColumnGenerator(BaseGenerator):
         target_table = self.foreign_key["referred_table"]
         column = self.foreign_key["referred_columns"][0]
         column = f"{target_table}.{column}"
+        options = self.foreign_key.get("options") or {}
         parameters = {
             "column": column,
-            "name": self.foreign_key["name"],
-            "comment": self.foreign_key["comment"],
-            **self.foreign_key["options"],
+            "name": self.foreign_key.get("name"),
+            "comment": self.foreign_key.get("comment"),
+            **options,
         }
         fk = self.generate_function_definition(ForeignKey, parameters)
         return StringReprWrapper(fk)
@@ -119,7 +120,7 @@ class ColumnGenerator(BaseGenerator):
         return args
 
     def create_column_identity(self) -> Optional[StringReprWrapper]:
-        identity_params = self.reflected_column["identity"]
+        identity_params = self.reflected_column.get("identity")
         identity = self.generate_function_definition(Identity, identity_params)
         return StringReprWrapper(identity)
 

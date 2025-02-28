@@ -141,7 +141,7 @@ class CoreSchemaGenerator:
             for column in self.reflected_data.columns[table]:
                 column_type = resolve_column_type(column, table_class_name)
 
-                if column["nullable"]:
+                if column.get("nullable"):
                     imports.add(Optional)
 
                 if column.get("computed"):
@@ -241,7 +241,7 @@ class DeclarativeSchemaGenerator(CoreSchemaGenerator):
 
                 self.table_column_map[table].add(column_name)
 
-                if column["nullable"]:
+                if column.get("nullable"):
                     self.nullable_column_map[table].add(column_name)
 
                 if isinstance(column_type, SQLAlchemyEnum):
