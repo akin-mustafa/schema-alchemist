@@ -92,7 +92,7 @@ class TableGenerator(BaseGenerator):
         ]
         columns = foreign_key["constrained_columns"]
         name = foreign_key["name"]
-        comment = foreign_key["comment"]
+        comment = foreign_key.get("comment")
         parameters = {
             "columns": columns,
             "refcolumns": referred_columns,
