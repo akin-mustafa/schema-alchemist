@@ -35,4 +35,6 @@ jobs:
         ruff check
     - name: Test with pytest
       run: |
+        ls
+        pip list
         pytest -s tests
