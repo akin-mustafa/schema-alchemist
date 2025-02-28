@@ -1,4 +1,5 @@
 import inspect
+import pathlib
 
 import pytest
 import sqlalchemy
@@ -105,27 +106,6 @@ def test_split_prefix_suffix(
 
 
 @pytest.mark.parametrize(
-    "paths, query, expected_prefix, expected_suffix",
-    [
-        (["a.b.z", "x.y.z"], "a.b.z", "a", "b.z"),
-        (["a.b.z", "x.y.z"], "x.y.z", "x", "y.z"),
-        (["single"], "single", "", "single"),
-    ],
-)
-def test_to_import_statement(paths, query, expected_prefix, expected_suffix):
-    """
-    Check that to_import_statement returns the expected string based on the prefix/suffix.
-    """
-    rt = ImportPathResolver(*paths)
-    statement = rt.build_import_statement(query)
-
-    if expected_prefix:
-        assert statement == f"from {expected_prefix} import {expected_suffix}"
-    else:
-        assert statement == f"import {expected_suffix}"
-
-
-@pytest.mark.parametrize(
     "value, expected",
     [
         (int, "int"),
@@ -149,9 +129,9 @@ def test_get_usage_name(import_path_resolver, value, expected):
 def test_get_usage_same_name(import_path_resolver):
     import_path_resolver.insert_many(SQLColumn, Column)
     result = import_path_resolver.get_usage_name(SQLColumn)
-    assert result == "schema.Column"
+    assert result == "schema_Column"
     result = import_path_resolver.get_usage_name(Column)
-    assert result == "helpers.Column"
+    assert result == "helpers_Column"
 
 
 @pytest.mark.parametrize(
@@ -163,18 +143,32 @@ def test_get_usage_same_name(import_path_resolver):
     ],
 )
 def test_find_unique_suffix_length(paths, reversed_tokens, expected_length):
-    """
-    Test the _find_unique_suffix_length method with multiple scenarios.
-    """
     rt = ImportPathResolver(*paths)
     assert rt._find_unique_suffix_length(reversed_tokens) == expected_length
 
 
 def test_build_all_import_statements():
-    inserted = ["a.b.z", "x.y.z", "simple"]
-    resolver = ImportPathResolver(*inserted)
+    inserts = [
+        "a.b.z",
+        "a.b.c",
+        "d.b.c",
+        "x.y.z",
+        "simple",
+        pathlib,
+        "__file__.pathlib",
+    ]
+    expected = [
+        "import pathlib as module_pathlib",
+        "import simple",
+        "from a.b import (\n    c as a_b_c,\n    z as b_z\n)",
+        "from d.b import c as d_b_c",
+        "from x.y import z as y_z",
+    ]
+
+    resolver = ImportPathResolver(*inserts)
+
     all_statements = resolver.build_all_import_statements()
-    expected = ["from a import b.z", "from x import y.z", "import simple"]
+
     assert all_statements == expected
 
 
@@ -183,14 +177,14 @@ def test_build_all_import_statements():
     [
         (int, True),
         (42, True),
+        ("42", False),
         (str, True),
         ("Exception", True),
-        ("", True),
+        (Exception, True),
+        ("", False),
         (inspect, False),
+        ("inspect", False),
     ],
 )
 def test_is_builtin(obj, expected):
-    """
-    Verify that is_builtin returns True for builtins and false otherwise.
-    """
-    assert ImportPathResolver.is_builtin(obj) == expected
+    assert ImportPathResolver.is_builtin_or_keyword(obj) == expected
