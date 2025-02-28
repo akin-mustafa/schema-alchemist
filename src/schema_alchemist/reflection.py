@@ -1,19 +1,8 @@
 from typing import Any, Optional, Collection, Set, Tuple, Union
 
-from sqlalchemy import Engine, Connection
+from sqlalchemy import Engine, Connection, MetaData
+from sqlalchemy.engine import ObjectKind, ObjectScope
 from sqlalchemy.engine.reflection import _ReflectionInfo, Inspector
-
-
-def get_reflection_info(
-    inspector: Inspector,
-    schema: Optional[str] = None,
-    filter_names: Optional[Collection[str]] = None,
-    available: Optional[Collection[str]] = None,
-    _reflect_info: Optional[_ReflectionInfo] = None,
-) -> _ReflectionInfo:
-    return inspector._get_reflection_info(
-        schema, filter_names, available, _reflect_info
-    )
 
 
 def get_table_names_to_be_reflected(
@@ -73,5 +62,10 @@ def reflect(
         exclude,
         reflect_views,
     )
-    reflection_info = get_reflection_info(inspector, schema, only, allowed_tables, **kw)
-    return reflection_info
+    return inspector._get_reflection_info(
+        schema,
+        filter_names=only,
+        available=allowed_tables,
+        kind=ObjectKind.ANY,
+        scope=ObjectScope.ANY,
+    )

@@ -79,9 +79,11 @@ class CoreSchemaGenerator:
 
     @cached_property
     def sorted_tables(self) -> List[Tuple[Optional[str], str]]:
-        return [
+        sorted_tables = [
             (self.schema, t[0]) for t in self.sorted_tables_and_fks if t[0] is not None
         ]
+        views = list(set(self.tables) - set(sorted_tables))
+        return sorted_tables + views
 
     @property
     def metadata_name(self) -> str:
