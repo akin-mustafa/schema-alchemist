@@ -79,14 +79,6 @@ class TableGenerator(BaseGenerator):
         self.unique_constraints = unique_constraints
         self.relationships = relationships
         super().__init__(import_path_resolver, *args, **kwargs)
-        self.generators = [
-            self.column_generator(
-                self.enrich_column(column),
-                import_path_resolver=self.import_path_resolver,
-                indentation=self.indent,
-            )
-            for column in self.columns
-        ]
 
     def create_fk_constraint(self, foreign_key: Dict[str, Any]) -> str:
         target_table = foreign_key["referred_table"]
@@ -113,7 +105,7 @@ class TableGenerator(BaseGenerator):
     def create_index_constraint(self, parameters: Dict[str, Any]) -> str:
         parameters = deepcopy(parameters)
         parameters["expressions"] = parameters.pop("column_names")
-        parameters["dialect_kw"] = parameters.pop("dialect_options")
+        parameters["dialect_kw"] = parameters.pop("dialect_options", None)
         parameters.pop("include_columns", None)
         parameters.pop("duplicates_constraint", None)
         parameters.pop("dialect_kw", None)
@@ -200,7 +192,17 @@ class TableGenerator(BaseGenerator):
         return column
 
     def generate_columns(self):
-        return ",\n".join([gen.generate() for gen in self.generators])
+        return ",\n".join(
+            [
+                self.column_generator(
+                    self.enrich_column(column),
+                    self.import_path_resolver,
+                    self.table_class_name,
+                    indentation=self.indent,
+                ).generate()
+                for column in self.columns
+            ]
+        )
 
     def get_table_args_schema(self):
         return f"schema = '{self.schema}'"
@@ -276,7 +278,17 @@ class DeclarativeTableGenerator(TableGenerator):
         return "\n".join(relationships)
 
     def generate_columns(self):
-        return "\n".join([gen.generate() for gen in self.generators])
+        return "\n".join(
+            [
+                self.column_generator(
+                    self.enrich_column(column),
+                    self.import_path_resolver,
+                    self.table_class_name,
+                    indentation=self.indent,
+                ).generate()
+                for column in self.columns
+            ]
+        )
 
     def generate(self) -> str:
         """

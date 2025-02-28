@@ -216,7 +216,7 @@ def test_declarative_column_generation(
     data, annotation, mapped_column, pre_configured_ipr
 ):
     pre_configured_ipr.insert(make_in_file_obj("order_status_enum"))
-    generator = DeclarativeColumnGenerator(data, pre_configured_ipr)
+    generator = DeclarativeColumnGenerator(data, pre_configured_ipr, "TestTable")
 
     assert generator.python_annotation == annotation
     assert generator.generate() == mapped_column

@@ -180,6 +180,8 @@ from schema_alchemist.utils import make_in_file_obj
 )
 def test_sqlmodel_column_generate(pre_configured_ipr, input_value, expected):
     pre_configured_ipr.insert(make_in_file_obj("order_status_enum"))
-    column_generator = SQLModelColumnGenerator(input_value, pre_configured_ipr)
+    column_generator = SQLModelColumnGenerator(
+        input_value, pre_configured_ipr, "TestTable"
+    )
     result = column_generator.generate()
     assert result == expected

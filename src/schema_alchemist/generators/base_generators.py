@@ -14,6 +14,7 @@ from typing import (
 from schema_alchemist.utils import (
     ImportPathResolver,
     DEFAULT_INDENTATION,
+    convert_to_attribute_name,
 )
 
 
@@ -118,5 +119,6 @@ class EnumGenerator:
         enum_usage = self.import_path_resolver.get_usage_name(Enum)
         lines = [f"class {self.name}({enum_usage}):"]
         for item in self.items:
-            lines.append(f"{self.indentation}{item} = {item!r}")
+            attr_name = convert_to_attribute_name(item)
+            lines.append(f"{self.indentation}{attr_name} = {item!r}")
         return "\n".join(lines)

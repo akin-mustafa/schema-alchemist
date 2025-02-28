@@ -62,10 +62,13 @@ def reflect(
         exclude,
         reflect_views,
     )
+
+    kind = ObjectKind.ANY if reflect_views else ObjectKind.TABLE
+
     return inspector._get_reflection_info(
         schema,
         filter_names=only,
         available=allowed_tables,
-        kind=ObjectKind.ANY,
+        kind=kind,
         scope=ObjectScope.ANY,
     )

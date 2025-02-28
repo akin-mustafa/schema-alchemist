@@ -39,7 +39,7 @@ def test_create_fk_constraint(pre_configured_ipr):
         "nullable": False,
         "foreign_key": fk_data,
     }
-    column_generator = ColumnGenerator(column_data, pre_configured_ipr)
+    column_generator = ColumnGenerator(column_data, pre_configured_ipr, "TestTable")
     result = column_generator.create_fk_constraint()
     assert result == expected
 
@@ -74,7 +74,7 @@ def test_create_column_computed(pre_configured_ipr, input_value, expected):
         "computed": input_value,
     }
     expected = StringReprWrapper(expected)
-    column_generator = ColumnGenerator(column_data, pre_configured_ipr)
+    column_generator = ColumnGenerator(column_data, pre_configured_ipr, "TestTable")
     result = column_generator.create_column_computed()
     assert result == expected
 
@@ -89,7 +89,7 @@ def test_create_column_computed_none(import_path_resolver):
         "comment": None,
     }
 
-    column_generator = ColumnGenerator(column_data, import_path_resolver)
+    column_generator = ColumnGenerator(column_data, import_path_resolver, "TestTable")
     result = column_generator.create_column_computed()
     assert result is None
 
@@ -254,7 +254,7 @@ def test_create_column_computed_none(import_path_resolver):
     ),
 )
 def test_core_column_generate(pre_configured_ipr, input_value, expected):
-    column_generator = ColumnGenerator(input_value, pre_configured_ipr)
+    column_generator = ColumnGenerator(input_value, pre_configured_ipr, "TestTable")
     result = column_generator.generate()
     assert result == expected
 
@@ -363,7 +363,7 @@ def test_core_column_generate(pre_configured_ipr, input_value, expected):
     ),
 )
 def test_properties(pre_configured_ipr, input_value, expected):
-    cg = ColumnGenerator(input_value, pre_configured_ipr)
+    cg = ColumnGenerator(input_value, pre_configured_ipr, "TestTable")
     assert cg.column_name == expected["column_name"]
     assert cg.column_type.__repr__() == expected["column_type"]
     assert cg.column_nullable == expected["column_nullable"]
@@ -385,7 +385,7 @@ def test_column_enum_type(import_path_resolver):
         "nullable": False,
     }
 
-    cg = ColumnGenerator(data, import_path_resolver)
+    cg = ColumnGenerator(data, import_path_resolver, "TestTable")
 
     assert cg.column_python_type == "order_status_enum"
 

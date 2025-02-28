@@ -245,7 +245,8 @@ class DeclarativeSchemaGenerator(CoreSchemaGenerator):
                     self.nullable_column_map[table].add(column_name)
 
                 if isinstance(column_type, SQLAlchemyEnum):
-                    name = column_type.name
+                    table_class = self.table_class_name_map[table]
+                    name = column_type.name or f"{table_class}{column_name}"
                     members = column_type.enums
                     self.enums.append((name, members))
 

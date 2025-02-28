@@ -435,6 +435,25 @@ def convert_to_class_name(s: str) -> str:
     return class_name
 
 
+def convert_to_attribute_name(s: str) -> str:
+    if not isinstance(s, str):
+        class_name = getattr(s, "__name__", s.__class__.__name__)
+        raise ValueError("Invalid argument type: {}".format(class_name))
+
+    s = re.sub(r"[^0-9a-zA-Z]+", " ", s)
+
+    if not s.strip():
+        raise ValueError("Class name cannot be empty.")
+
+    words = s.split()
+    attr_name = "_".join(words)
+
+    if attr_name[0].isdigit():
+        attr_name = "_" + attr_name
+
+    return attr_name
+
+
 def create_table_name(table: str, schema: Optional[str] = None) -> str:
     """
     Constructs a fully qualified table name, optionally including the schema.
