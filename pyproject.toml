@@ -1,0 +1,24 @@
+[project]
+name = "schema-alchemist"
+version = "0.0.2"
+description = "turn your DB tables to python code"
+readme = "README.md"
+authors = [
+    { name = "akin" }
+]
+requires-python = ">=3.8"
+dependencies = [
+    "inflect>=7.4.0",
+    "sqlalchemy>=2.0.19",
+    "sqlmodel>=0.0.20",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.4",
+    "pytest-cov>=5.0.0",
+    "ruff>=0.9.7",
+]
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
