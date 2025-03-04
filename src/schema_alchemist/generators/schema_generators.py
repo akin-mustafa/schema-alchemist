@@ -65,7 +65,7 @@ class CoreSchemaGenerator:
         create_table_args: bool = False,
         use_camel_case: bool = False,
         use_generic_types: bool = False,
-        excluded_relationship_tables: Optional[List[str]] = None,
+        excluded_relationship_tables: Optional[List[Tuple[Optional[str], str]]] = None,
     ):
         self.reflected_data = reflected_data
         self.sorted_tables_and_fks = sorted_tables_and_fks
@@ -214,6 +214,7 @@ class DeclarativeSchemaGenerator(CoreSchemaGenerator):
         add_comments: bool = False,
         create_table_args: bool = False,
         use_camel_case: bool = False,
+        **kwargs,
     ):
         super().__init__(
             reflected_data,
@@ -222,6 +223,7 @@ class DeclarativeSchemaGenerator(CoreSchemaGenerator):
             add_comments,
             create_table_args,
             use_camel_case,
+            **kwargs,
         )
         self.relationships = defaultdict(list)
         self.relation_names_map = defaultdict(list)
@@ -699,7 +701,7 @@ class SQLModelSchemaGenerator(DeclarativeSchemaGenerator):
         class_usage = self.import_path_resolver.get_usage_name(SQLModel)
         registry_usage = self.import_path_resolver.get_usage_name(registry)
         return (
-            f"class {self.metadata_name}({class_usage}, registry={registry_usage}():"
+            f"class {self.metadata_name}({class_usage}, registry={registry_usage}()):"
             f"\n    pass"
         )
 
@@ -763,7 +765,7 @@ def generate_schema(
     reflected_data: _ReflectionInfo,
     sorted_tables_and_fks: List[Tuple[Optional[str], List[Tuple[str, Optional[str]]]]],
     schema: str,
-    excluded_relationship_tables: Optional[List[str]] = None,
+    excluded_relationship_tables: Optional[List[Tuple[Optional[str], str]]] = None,
     add_comments: bool = False,
     create_table_args: bool = True,
     use_camel_case: bool = False,
