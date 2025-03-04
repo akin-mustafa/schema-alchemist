@@ -3,7 +3,6 @@ from typing import Union, Type, List, Optional
 from sqlalchemy import Engine, Connection
 
 
-from schema_alchemist.constants import SchemaTypeEnum
 from schema_alchemist.generators import CoreSchemaGenerator, generate_schema
 from schema_alchemist.reflection import reflect, get_inspector
 

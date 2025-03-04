@@ -34,7 +34,7 @@ from sqlalchemy.orm import (
 )
 from sqlmodel import SQLModel, Field, Relationship
 
-from schema_alchemist.constants import SchemaTypeEnum, SQLRelationshipType
+from schema_alchemist.constants import SQLRelationshipType
 from schema_alchemist.generators import (
     DeclarativeTableGenerator,
     EnumGenerator,
