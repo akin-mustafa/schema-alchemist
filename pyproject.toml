@@ -1,6 +1,6 @@
 [project]
 name = "schema-alchemist"
-version = "0.0.3"
+version = "0.0.4"
 description = "turn your DB tables to python code"
 readme = "README.md"
 authors = [
