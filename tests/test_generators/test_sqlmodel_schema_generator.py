@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import pytest
 from sqlalchemy import Column, Table
+from sqlalchemy.orm import registry
 from sqlmodel import Relationship, Field, SQLModel
 
 from schema_alchemist.constants import SQLRelationshipType
@@ -26,13 +27,15 @@ def test_schema_type_imports(reflected_data, sorted_tables):
         Column,
         Table,
         List,
+        registry,
     )
 
 
 def test_generate_base_definition(reflected_data, sorted_tables):
+    expected = "class Base(SQLModel, registry=registry():\n    pass"
     sg = SQLModelSchemaGenerator(reflected_data, sorted_tables, schema="public")
     sg.collect_imports()
-    assert sg.generate_base_definition() == "SQLModel"
+    assert sg.generate_base_definition() == expected
 
 
 def test_get_suffixes_snake_case(reflected_data, sorted_tables):

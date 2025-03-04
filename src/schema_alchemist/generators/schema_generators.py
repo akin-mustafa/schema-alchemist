@@ -30,6 +30,7 @@ from sqlalchemy.orm import (
     mapped_column,
     Mapped,
     relationship,
+    registry,
 )
 from sqlmodel import SQLModel, Field, Relationship
 
@@ -64,6 +65,7 @@ class CoreSchemaGenerator:
         create_table_args: bool = False,
         use_camel_case: bool = False,
         use_generic_types: bool = False,
+        excluded_relationship_tables: Optional[List[str]] = None,
     ):
         self.reflected_data = reflected_data
         self.sorted_tables_and_fks = sorted_tables_and_fks
@@ -76,6 +78,10 @@ class CoreSchemaGenerator:
         self.import_path_resolver = ImportPathResolver()
 
         self.tables = list(self.reflected_data.columns.keys())
+        self.excluded_relationship_tables = [
+            (self.schema, table) for table in excluded_relationship_tables or []
+        ]
+
         self.table_class_name_map = {
             table: convert_to_class_name(table[1]) for table in self.sorted_tables
         }
@@ -521,6 +527,9 @@ class DeclarativeSchemaGenerator(CoreSchemaGenerator):
         for main_table, fks in self.reflected_data.foreign_keys.items():
             m2m, self_referencing = self.resolve_m2m_relationship(main_table)
 
+            if main_table in self.excluded_relationship_tables:
+                continue
+
             if m2m:
                 self.m2m_associated_tables.append(main_table)
                 self.handle_m2m_relations(main_table, fks, self_referencing)
@@ -535,7 +544,10 @@ class DeclarativeSchemaGenerator(CoreSchemaGenerator):
 
                 target_table = (fk["referred_schema"], fk["referred_table"])
 
-                if not self.reflected_data.pk_constraint.get(target_table):
+                if (
+                    not self.reflected_data.pk_constraint.get(target_table)
+                    or target_table in self.excluded_relationship_tables
+                ):
                     continue
 
                 try:
@@ -681,12 +693,17 @@ class SQLModelSchemaGenerator(DeclarativeSchemaGenerator):
 
     @cached_property
     def schema_type_imports(self):
-        return SQLModel, Field, Relationship, Column, Table, List
+        return SQLModel, Field, Relationship, Column, Table, List, registry
 
     def generate_base_definition(self) -> str:
-        return self.import_path_resolver.get_usage_name(SQLModel)
+        class_usage = self.import_path_resolver.get_usage_name(SQLModel)
+        registry_usage = self.import_path_resolver.get_usage_name(registry)
+        return (
+            f"class {self.metadata_name}({class_usage}, registry={registry_usage}():"
+            f"\n    pass"
+        )
 
-    def generate(self):
+    def generate(self) -> str:
         self.collect_imports()
         enums = self.generate_enums()
 
@@ -699,7 +716,7 @@ class SQLModelSchemaGenerator(DeclarativeSchemaGenerator):
         pk_constraint = self.reflected_data.pk_constraint
         unique_constraints = self.reflected_data.unique_constraints
 
-        metadata = self.generate_base_definition()
+        base_definition = self.generate_base_definition()
 
         for table in reversed(self.sorted_tables):
             if table in self.m2m_associated_tables or not self.table_pk_map.get(table):
@@ -708,7 +725,7 @@ class SQLModelSchemaGenerator(DeclarativeSchemaGenerator):
                         name=table[1],
                         import_path_resolver=self.import_path_resolver,
                         schema=self.schema,
-                        metadata_name=f"{metadata}.metadata",
+                        metadata_name=f"{self.metadata_name}.metadata",
                         columns=columns[table],
                         comment=table_comment.get(table, []),
                         check_constraints=check_constraints.get(table, []),
@@ -738,46 +755,26 @@ class SQLModelSchemaGenerator(DeclarativeSchemaGenerator):
 
         import_statements = self.generate_imports()
         tables = [tg.generate() for tg in tables_generators]
-        return "\n\n\n".join([import_statements, *enums, *tables])
+        return "\n\n\n".join([import_statements, *enums, base_definition, *tables])
 
 
-class SchemaGeneratorFactory:
-    def __init__(
-        self,
-        reflected_data: _ReflectionInfo,
-        sorted_tables_and_fks: List[Tuple[str, List[Tuple[str, str]]]],
-        schema_type: SchemaTypeEnum = SchemaTypeEnum.table,
-        schema: Optional[str] = None,
-        add_comments: bool = False,
-        create_table_args: bool = False,
-        use_camel_case: bool = False,
-    ):
-        self.reflected_data = reflected_data
-        self.sorted_tables_and_fks = sorted_tables_and_fks
-        self.schema = schema
-        self.add_comments = add_comments
-        self.create_table_args = create_table_args
-        self.use_camel_case = use_camel_case
-        self.schema_type = schema_type
-
-    def get_generator_class(self) -> Type[CoreSchemaGenerator]:
-        if self.schema_type == SchemaTypeEnum.declarative:
-            return DeclarativeSchemaGenerator
-        if self.schema_type == SchemaTypeEnum.sqlmodel:
-            return SQLModelSchemaGenerator
-        if self.schema_type == SchemaTypeEnum.table:
-            return CoreSchemaGenerator
-        raise ValueError(f"Unknown schema type: {self.schema_type}")
-
-    def generate(self) -> str:
-        generator_class = self.get_generator_class()
-
-        generator = generator_class(
-            self.reflected_data,
-            self.sorted_tables_and_fks,
-            self.schema,
-            self.add_comments,
-            self.create_table_args,
-            self.use_camel_case,
-        )
-        return generator.generate()
+def generate_schema(
+    generator_class: Type[CoreSchemaGenerator],
+    reflected_data: _ReflectionInfo,
+    sorted_tables_and_fks: List[Tuple[Optional[str], List[Tuple[str, Optional[str]]]]],
+    schema: str,
+    excluded_relationship_tables: Optional[List[str]] = None,
+    add_comments: bool = False,
+    create_table_args: bool = True,
+    use_camel_case: bool = False,
+) -> str:
+    generator = generator_class(
+        reflected_data=reflected_data,
+        sorted_tables_and_fks=sorted_tables_and_fks,
+        schema=schema,
+        add_comments=add_comments,
+        create_table_args=create_table_args,
+        use_camel_case=use_camel_case,
+        excluded_relationship_tables=excluded_relationship_tables,
+    )
+    return generator.generate()

@@ -1201,6 +1201,7 @@ def sqlmodel_tables():
     return """from datetime import datetime
 from decimal import Decimal
 from enum import Enum as enum_Enum
+from sqlalchemy.orm.decl_api import registry
 from sqlalchemy.sql.schema import (
     CheckConstraint,
     Column,
@@ -1245,7 +1246,11 @@ class user_role(enum_Enum):
     guest = 'guest'
 
 
-class OrderItems(SQLModel, table=True):
+class Base(SQLModel, registry=registry():
+    pass
+
+
+class OrderItems(Base, table=True):
     __tablename__ = 'order_items'
     __table_args__ = (
         PrimaryKeyConstraint('order_id', 'product_id', name='order_items_pkey'),
@@ -1265,7 +1270,7 @@ class OrderItems(SQLModel, table=True):
     product: 'Products' = Relationship(back_populates='order_items', sa_relationship_kwargs={'foreign_keys': '[OrderItems.product_id,]'})
 
 
-StudentCourseInstructors = Table('student_course_instructors', SQLModel.metadata,
+StudentCourseInstructors = Table('student_course_instructors', Base.metadata,
     Column('student_id', INTEGER(), autoincrement=False, nullable=False),
     Column('course_id', INTEGER(), autoincrement=False, nullable=False),
     Column('instructor_id', INTEGER(), autoincrement=False, nullable=False),
@@ -1277,7 +1282,7 @@ StudentCourseInstructors = Table('student_course_instructors', SQLModel.metadata
 )
 
 
-class Profiles(SQLModel, table=True):
+class Profiles(Base, table=True):
     __tablename__ = 'profiles'
     __table_args__ = (
         PrimaryKeyConstraint('user_id', name='profiles_pkey'),
@@ -1292,7 +1297,7 @@ class Profiles(SQLModel, table=True):
     user: 'Users' = Relationship(back_populates='profile', sa_relationship_kwargs={'foreign_keys': '[Profiles.user_id,]'})
 
 
-ProductCategories = Table('product_categories', SQLModel.metadata,
+ProductCategories = Table('product_categories', Base.metadata,
     Column('product_id', INTEGER(), autoincrement=False, nullable=False, primary_key=True),
     Column('category_id', INTEGER(), autoincrement=False, nullable=False, primary_key=True),
 
@@ -1303,7 +1308,7 @@ ProductCategories = Table('product_categories', SQLModel.metadata,
 )
 
 
-class Orders(SQLModel, table=True):
+class Orders(Base, table=True):
     __tablename__ = 'orders'
     __table_args__ = (
         PrimaryKeyConstraint('id', name='orders_pkey'),
@@ -1325,7 +1330,7 @@ class Orders(SQLModel, table=True):
     user: 'Users' = Relationship(back_populates='orders', sa_relationship_kwargs={'foreign_keys': '[Orders.user_id,]'})
 
 
-EmployeeRelationships = Table('employee_relationships', SQLModel.metadata,
+EmployeeRelationships = Table('employee_relationships', Base.metadata,
     Column('employee_id', INTEGER(), autoincrement=False, nullable=False, primary_key=True),
     Column('related_employee_id', INTEGER(), autoincrement=False, nullable=False, primary_key=True),
 
@@ -1336,7 +1341,7 @@ EmployeeRelationships = Table('employee_relationships', SQLModel.metadata,
 )
 
 
-class Users(SQLModel, table=True):
+class Users(Base, table=True):
     __tablename__ = 'users'
     __table_args__ = (
         PrimaryKeyConstraint('id', name='users_pkey'),
@@ -1356,7 +1361,7 @@ class Users(SQLModel, table=True):
     profile: 'Profiles' = Relationship(back_populates='user', sa_relationship_kwargs={'foreign_keys': '[Profiles.user_id,]'})
 
 
-Students = Table('students', SQLModel.metadata,
+Students = Table('students', Base.metadata,
     Column('student_id', INTEGER(), autoincrement=True, nullable=False, server_default='nextval(\\'"public".students_student_id_seq\\'::regclass)'),
     Column('name', VARCHAR(length=100), autoincrement=False, nullable=False),
     Column('email', VARCHAR(length=100), autoincrement=False, nullable=False),
@@ -1365,7 +1370,7 @@ Students = Table('students', SQLModel.metadata,
 )
 
 
-class Products(SQLModel, table=True):
+class Products(Base, table=True):
     __tablename__ = 'products'
     __table_args__ = (
         PrimaryKeyConstraint('id', name='products_pkey'),
@@ -1383,7 +1388,7 @@ class Products(SQLModel, table=True):
     categories: List['Categories'] = Relationship(back_populates='products', link_model=ProductCategories)
 
 
-Instructors = Table('instructors', SQLModel.metadata,
+Instructors = Table('instructors', Base.metadata,
     Column('instructor_id', INTEGER(), autoincrement=True, nullable=False, server_default='nextval(\\'"public".instructors_instructor_id_seq\\'::regclass)'),
     Column('name', VARCHAR(length=100), autoincrement=False, nullable=False),
     Column('email', VARCHAR(length=100), autoincrement=False, nullable=False),
@@ -1392,7 +1397,7 @@ Instructors = Table('instructors', SQLModel.metadata,
 )
 
 
-class Employees(SQLModel, table=True):
+class Employees(Base, table=True):
     __tablename__ = 'employees'
     __table_args__ = (
         PrimaryKeyConstraint('id', name='employees_pkey'),
@@ -1406,7 +1411,7 @@ class Employees(SQLModel, table=True):
     employees: List['Employees'] = Relationship(back_populates='related_employees', link_model=EmployeeRelationships, sa_relationship_kwargs={'primaryjoin': id == EmployeeRelationships.c.related_employee_id, 'secondaryjoin': id == EmployeeRelationships.c.employee_id})
 
 
-Courses = Table('courses', SQLModel.metadata,
+Courses = Table('courses', Base.metadata,
     Column('course_id', INTEGER(), autoincrement=True, nullable=False, server_default='nextval(\\'"public".courses_course_id_seq\\'::regclass)'),
     Column('course_name', VARCHAR(length=100), autoincrement=False, nullable=False),
 
@@ -1414,7 +1419,7 @@ Courses = Table('courses', SQLModel.metadata,
 )
 
 
-class Categories(SQLModel, table=True):
+class Categories(Base, table=True):
     __tablename__ = 'categories'
     __table_args__ = (
         PrimaryKeyConstraint('id', name='categories_pkey'),

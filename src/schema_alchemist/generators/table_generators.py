@@ -16,7 +16,6 @@ from sqlalchemy import (
     Table,
     UniqueConstraint,
 )
-from sqlmodel import SQLModel
 
 from schema_alchemist.generators.base_generators import BaseGenerator
 from schema_alchemist.generators.column_generators import (
@@ -379,5 +378,4 @@ class SQLModelTableGenerator(DeclarativeTableGenerator):
         return column
 
     def create_table_definition(self):
-        sql_model_usage = self.import_path_resolver.get_usage_name(SQLModel)
-        return [f"class {self.table_class_name}({sql_model_usage}, table=True):"]
+        return [f"class {self.table_class_name}({self.metadata_name}, table=True):"]

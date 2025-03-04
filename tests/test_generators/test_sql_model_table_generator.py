@@ -4,7 +4,7 @@ from sqlalchemy.dialects.mysql import ENUM
 
 from schema_alchemist.generators import SQLModelTableGenerator
 
-UserTable = """class User(SQLModel, table=True):
+UserTable = """class User(Base, table=True):
     __tablename__ = 'user'
     __table_args__ = (
         PrimaryKeyConstraint('id', name='users_pkey'),
