@@ -1246,7 +1246,7 @@ class user_role(enum_Enum):
     guest = 'guest'
 
 
-class Base(SQLModel, registry=registry():
+class Base(SQLModel, registry=registry()):
     pass
 
 
