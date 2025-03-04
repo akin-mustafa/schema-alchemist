@@ -32,7 +32,7 @@ def test_schema_type_imports(reflected_data, sorted_tables):
 
 
 def test_generate_base_definition(reflected_data, sorted_tables):
-    expected = "class Base(SQLModel, registry=registry():\n    pass"
+    expected = "class Base(SQLModel, registry=registry()):\n    pass"
     sg = SQLModelSchemaGenerator(reflected_data, sorted_tables, schema="public")
     sg.collect_imports()
     assert sg.generate_base_definition() == expected
