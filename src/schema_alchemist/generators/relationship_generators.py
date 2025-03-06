@@ -99,10 +99,12 @@ class SQLModelRelationGenerator(DeclarativeRelationGenerator):
             secondary = StringReprWrapper(secondary)
 
         parameters = {
-            "link_model": secondary,
             "back_populates": self.back_populates,
         }
+
         sa_relationship_kwargs = {}
+        if secondary:
+            sa_relationship_kwargs["secondary"] = secondary
         if self.remote_side:
             sa_relationship_kwargs["remote_side"] = self.remote_side
         if self.primaryjoin:

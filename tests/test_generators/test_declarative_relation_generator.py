@@ -27,7 +27,7 @@ from schema_alchemist.generators import DeclarativeRelationGenerator
                 "secondary": None,
                 "relation_type": SQLRelationshipType.o2m,
             },
-            "    parent: Mapped['Parent'] = relationship(" "back_populates='children')",
+            "    parent: Mapped['Parent'] = relationship(back_populates='children')",
         ),
         (
             {

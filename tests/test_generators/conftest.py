@@ -1385,7 +1385,7 @@ class Products(Base, table=True):
     tags: Optional[List] = Field(default=None, sa_column=Column('tags', ARRAY(TEXT()), autoincrement=False, nullable=True))
 
     order_items: List['OrderItems'] = Relationship(back_populates='product', sa_relationship_kwargs={'foreign_keys': '[OrderItems.product_id,]'})
-    categories: List['Categories'] = Relationship(back_populates='products', link_model=ProductCategories)
+    categories: List['Categories'] = Relationship(back_populates='products', sa_relationship_kwargs={'secondary': ProductCategories})
 
 
 Instructors = Table('instructors', Base.metadata,
@@ -1407,8 +1407,8 @@ class Employees(Base, table=True):
     id: Optional[int] = Field(default=None, sa_column=Column('id', INTEGER(), autoincrement=True, nullable=False, primary_key=True, server_default='nextval(\\'"public".employees_id_seq\\'::regclass)'))
     name: str = Field(sa_column=Column('name', TEXT(), autoincrement=False, nullable=False))
 
-    related_employees: List['Employees'] = Relationship(back_populates='employees', link_model=EmployeeRelationships, sa_relationship_kwargs={'primaryjoin': id == EmployeeRelationships.c.employee_id, 'secondaryjoin': id == EmployeeRelationships.c.related_employee_id})
-    employees: List['Employees'] = Relationship(back_populates='related_employees', link_model=EmployeeRelationships, sa_relationship_kwargs={'primaryjoin': id == EmployeeRelationships.c.related_employee_id, 'secondaryjoin': id == EmployeeRelationships.c.employee_id})
+    related_employees: List['Employees'] = Relationship(back_populates='employees', sa_relationship_kwargs={'secondary': EmployeeRelationships, 'primaryjoin': id == EmployeeRelationships.c.employee_id, 'secondaryjoin': id == EmployeeRelationships.c.related_employee_id})
+    employees: List['Employees'] = Relationship(back_populates='related_employees', sa_relationship_kwargs={'secondary': EmployeeRelationships, 'primaryjoin': id == EmployeeRelationships.c.related_employee_id, 'secondaryjoin': id == EmployeeRelationships.c.employee_id})
 
 
 Courses = Table('courses', Base.metadata,
@@ -1435,4 +1435,4 @@ class Categories(Base, table=True):
 
     parent: 'Categories' = Relationship(back_populates='sub_categories', sa_relationship_kwargs={'remote_side': 'Categories.id', 'foreign_keys': '[Categories.parent_id,]'})
     sub_categories: List['Categories'] = Relationship(back_populates='parent', sa_relationship_kwargs={'foreign_keys': '[Categories.parent_id,]'})
-    products: List['Products'] = Relationship(back_populates='categories', link_model=ProductCategories)"""
+    products: List['Products'] = Relationship(back_populates='categories', sa_relationship_kwargs={'secondary': ProductCategories})"""

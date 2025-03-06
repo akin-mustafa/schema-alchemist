@@ -19,7 +19,6 @@ from schema_alchemist.utils import StringReprWrapper
             },
             {
                 "back_populates": "profile",
-                "link_model": None,
             },
             "    user: 'User' = Relationship(back_populates='profile')",
         ),
@@ -34,7 +33,6 @@ from schema_alchemist.utils import StringReprWrapper
             },
             {
                 "back_populates": "children",
-                "link_model": None,
             },
             "    parent: 'Parent' = Relationship(back_populates='children')",
         ),
@@ -49,7 +47,6 @@ from schema_alchemist.utils import StringReprWrapper
             },
             {
                 "back_populates": "parent",
-                "link_model": None,
             },
             "    children: List['Child'] = Relationship(back_populates='parent')",
         ),
@@ -65,10 +62,13 @@ from schema_alchemist.utils import StringReprWrapper
             },
             {
                 "back_populates": "categories",
-                "link_model": StringReprWrapper("CategoryAttribute"),
+                "sa_relationship_kwargs": {
+                    "secondary": StringReprWrapper("CategoryAttribute")
+                },
             },
-            "    attributes: List['Attribute'] = Relationship("
-            "back_populates='categories', link_model=CategoryAttribute)",
+            "    attributes: List['Attribute'] = "
+            "Relationship(back_populates='categories', "
+            "sa_relationship_kwargs={'secondary': CategoryAttribute})",
         ),
     ),
 )
