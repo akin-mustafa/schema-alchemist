@@ -28,19 +28,15 @@ from schema_alchemist.generators.schema_generators import CoreSchemaGenerator
 from sqlalchemy import create_engine
 from sqlalchemy.engine.reflection import Inspector
 
-# Create a SQLAlchemy engine
 engine = create_engine('sqlite:///example.db')
 
-# Reflect the database schema
 inspector = Inspector.from_engine(engine)
 reflected_data = inspector.reflect()
 sorted_tables_and_fks = inspector.get_sorted_table_and_fkc_names()
 
-# Generate the schema
 generator = CoreSchemaGenerator(reflected_data, sorted_tables_and_fks)
 schema = generator.generate()
 
-# Print the generated schema
 print(schema)
 ```
 
