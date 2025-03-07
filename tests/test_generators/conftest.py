@@ -258,6 +258,14 @@ def reflected_data():
                     "comment": None,
                 },
                 {
+                    "name": "validate",
+                    "type": VARCHAR(length=255),
+                    "nullable": False,
+                    "default": None,
+                    "autoincrement": False,
+                    "comment": None,
+                },
+                {
                     "name": "description",
                     "type": TEXT(),
                     "nullable": True,
@@ -843,6 +851,7 @@ Instructors = Table('instructors', metadata,
 Products = Table('products', metadata,
     Column('id', INTEGER(), autoincrement=True, nullable=False, primary_key=True, server_default='nextval(\\'"public".products_id_seq\\'::regclass)'),
     Column('name', VARCHAR(length=255), autoincrement=False, nullable=False),
+    Column('validate', VARCHAR(length=255), autoincrement=False, nullable=False),
     Column('description', TEXT(), autoincrement=False, nullable=True),
     Column('price', NUMERIC(precision=10, scale=2), autoincrement=False, nullable=False),
     Column('tags', ARRAY(TEXT()), autoincrement=False, nullable=True),
@@ -1138,6 +1147,7 @@ class Products(Base):
 
     id: Mapped[int] = mapped_column('id', INTEGER(), nullable=False, primary_key=True, autoincrement=True, server_default='nextval(\\'"public".products_id_seq\\'::regclass)')
     name: Mapped[str] = mapped_column('name', VARCHAR(length=255), nullable=False, autoincrement=False)
+    validate: Mapped[str] = mapped_column('validate', VARCHAR(length=255), nullable=False, autoincrement=False)
     description: Mapped[Optional[str]] = mapped_column('description', TEXT(), nullable=True, autoincrement=False)
     price: Mapped[Decimal] = mapped_column('price', NUMERIC(precision=10, scale=2), nullable=False, autoincrement=False)
     tags: Mapped[Optional[List]] = mapped_column('tags', ARRAY(TEXT()), nullable=True, autoincrement=False)
@@ -1380,6 +1390,7 @@ class Products(Base, table=True):
 
     id: Optional[int] = Field(default=None, sa_column=Column('id', INTEGER(), autoincrement=True, nullable=False, primary_key=True, server_default='nextval(\\'"public".products_id_seq\\'::regclass)'))
     name: str = Field(sa_column=Column('name', VARCHAR(length=255), autoincrement=False, nullable=False))
+    validate_: str = Field(alias='validate', sa_column=Column('validate', VARCHAR(length=255), autoincrement=False, nullable=False))
     description: Optional[str] = Field(default=None, sa_column=Column('description', TEXT(), autoincrement=False, nullable=True))
     price: Decimal = Field(sa_column=Column('price', NUMERIC(precision=10, scale=2), autoincrement=False, nullable=False))
     tags: Optional[List] = Field(default=None, sa_column=Column('tags', ARRAY(TEXT()), autoincrement=False, nullable=True))

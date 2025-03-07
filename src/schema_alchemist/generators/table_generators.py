@@ -372,9 +372,6 @@ class SQLModelTableGenerator(DeclarativeTableGenerator):
 
     def enrich_column(self, column: dict[str, Any]):
         super().enrich_column(column)
-        name = column["name"]
-        column["alias"] = name
-
         return column
 
     def create_table_definition(self):

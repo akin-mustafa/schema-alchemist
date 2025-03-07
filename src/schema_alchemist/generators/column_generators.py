@@ -228,6 +228,8 @@ class SQLModelColumnGenerator(DeclarativeColumnGenerator):
         parameters = {"sa_column": StringReprWrapper(sa_column.generate())}
         if self.column_nullable or self.parameters.get("primary_key"):
             parameters["default"] = None
+        if self.column_name in dir(SQLModel):
+            parameters["alias"] = self.column_name
         return parameters
 
     @property
