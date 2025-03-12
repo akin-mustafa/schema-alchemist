@@ -1037,7 +1037,7 @@ class OrderItems(Base):
     product: Mapped['Products'] = relationship(back_populates='order_items', foreign_keys='[OrderItems.product_id,]')
 
 
-StudentCourseInstructors = Table('student_course_instructors', Base,
+StudentCourseInstructors = Table('student_course_instructors', Base.metadata,
     Column('student_id', INTEGER(), autoincrement=False, nullable=False),
     Column('course_id', INTEGER(), autoincrement=False, nullable=False),
     Column('instructor_id', INTEGER(), autoincrement=False, nullable=False),
@@ -1064,7 +1064,7 @@ class Profiles(Base):
     user: Mapped['Users'] = relationship(back_populates='profile', foreign_keys='[Profiles.user_id,]')
 
 
-ProductCategories = Table('product_categories', Base,
+ProductCategories = Table('product_categories', Base.metadata,
     Column('product_id', INTEGER(), autoincrement=False, nullable=False, primary_key=True),
     Column('category_id', INTEGER(), autoincrement=False, nullable=False, primary_key=True),
 
@@ -1097,7 +1097,7 @@ class Orders(Base):
     user: Mapped['Users'] = relationship(back_populates='orders', foreign_keys='[Orders.user_id,]')
 
 
-EmployeeRelationships = Table('employee_relationships', Base,
+EmployeeRelationships = Table('employee_relationships', Base.metadata,
     Column('employee_id', INTEGER(), autoincrement=False, nullable=False, primary_key=True),
     Column('related_employee_id', INTEGER(), autoincrement=False, nullable=False, primary_key=True),
 
@@ -1128,7 +1128,7 @@ class Users(Base):
     profile: Mapped['Profiles'] = relationship(back_populates='user', foreign_keys='[Profiles.user_id,]')
 
 
-Students = Table('students', Base,
+Students = Table('students', Base.metadata,
     Column('student_id', INTEGER(), autoincrement=True, nullable=False, server_default='nextval(\\'"public".students_student_id_seq\\'::regclass)'),
     Column('name', VARCHAR(length=100), autoincrement=False, nullable=False),
     Column('email', VARCHAR(length=100), autoincrement=False, nullable=False),
@@ -1156,7 +1156,7 @@ class Products(Base):
     categories: Mapped[List['Categories']] = relationship(secondary=ProductCategories, back_populates='products')
 
 
-Instructors = Table('instructors', Base,
+Instructors = Table('instructors', Base.metadata,
     Column('instructor_id', INTEGER(), autoincrement=True, nullable=False, server_default='nextval(\\'"public".instructors_instructor_id_seq\\'::regclass)'),
     Column('name', VARCHAR(length=100), autoincrement=False, nullable=False),
     Column('email', VARCHAR(length=100), autoincrement=False, nullable=False),
@@ -1179,7 +1179,7 @@ class Employees(Base):
     employees: Mapped[List['Employees']] = relationship(secondary=EmployeeRelationships, primaryjoin=id == EmployeeRelationships.c.related_employee_id, secondaryjoin=id == EmployeeRelationships.c.employee_id, back_populates='related_employees')
 
 
-Courses = Table('courses', Base,
+Courses = Table('courses', Base.metadata,
     Column('course_id', INTEGER(), autoincrement=True, nullable=False, server_default='nextval(\\'"public".courses_course_id_seq\\'::regclass)'),
     Column('course_name', VARCHAR(length=100), autoincrement=False, nullable=False),
 

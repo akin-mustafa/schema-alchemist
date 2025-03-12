@@ -272,6 +272,10 @@ class DeclarativeSchemaGenerator(CoreSchemaGenerator):
         return DeclarativeBase, Mapped, mapped_column, relationship, Column, Table
 
     @property
+    def table_generator_class(self):
+        return DeclarativeTableGenerator
+
+    @property
     def singular_suffixes(self) -> List[str]:
         if self.use_camel_case:
             return ["Detail", "Instance", "Data"]
@@ -637,6 +641,8 @@ class DeclarativeSchemaGenerator(CoreSchemaGenerator):
 
     def generate(self) -> str:
         self.collect_imports()
+        enums = self.generate_enums()
+
         columns = self.reflected_data.columns
         table_comment = self.reflected_data.table_comment
         check_constraints = self.reflected_data.check_constraints
@@ -644,8 +650,6 @@ class DeclarativeSchemaGenerator(CoreSchemaGenerator):
         indexes = self.reflected_data.indexes
         pk_constraint = self.reflected_data.pk_constraint
         unique_constraints = self.reflected_data.unique_constraints
-
-        enums = self.generate_enums()
 
         tables_generators = []
         for table in reversed(self.sorted_tables):
@@ -655,7 +659,7 @@ class DeclarativeSchemaGenerator(CoreSchemaGenerator):
                         name=table[1],
                         import_path_resolver=self.import_path_resolver,
                         schema=self.schema,
-                        metadata_name=self.metadata_name,
+                        metadata_name=f"{self.metadata_name}.metadata",
                         columns=columns[table],
                         comment=table_comment.get(table, {}),
                         check_constraints=check_constraints.get(table, []),
@@ -667,7 +671,7 @@ class DeclarativeSchemaGenerator(CoreSchemaGenerator):
                 )
 
             else:
-                generator = DeclarativeTableGenerator(
+                generator = self.table_generator_class(
                     name=table[1],
                     import_path_resolver=self.import_path_resolver,
                     schema=self.schema,
@@ -697,6 +701,10 @@ class SQLModelSchemaGenerator(DeclarativeSchemaGenerator):
     def schema_type_imports(self):
         return SQLModel, Field, Relationship, Column, Table, List, registry
 
+    @property
+    def table_generator_class(self):
+        return SQLModelTableGenerator
+
     def generate_base_definition(self) -> str:
         class_usage = self.import_path_resolver.get_usage_name(SQLModel)
         registry_usage = self.import_path_resolver.get_usage_name(registry)
@@ -704,60 +712,6 @@ class SQLModelSchemaGenerator(DeclarativeSchemaGenerator):
             f"class {self.metadata_name}({class_usage}, registry={registry_usage}()):"
             f"\n    pass"
         )
-
-    def generate(self) -> str:
-        self.collect_imports()
-        enums = self.generate_enums()
-
-        tables_generators = []
-        columns = self.reflected_data.columns
-        table_comment = self.reflected_data.table_comment
-        check_constraints = self.reflected_data.check_constraints
-        foreign_keys = self.reflected_data.foreign_keys
-        indexes = self.reflected_data.indexes
-        pk_constraint = self.reflected_data.pk_constraint
-        unique_constraints = self.reflected_data.unique_constraints
-
-        base_definition = self.generate_base_definition()
-
-        for table in reversed(self.sorted_tables):
-            if table in self.m2m_associated_tables or not self.table_pk_map.get(table):
-                tables_generators.append(
-                    TableGenerator(
-                        name=table[1],
-                        import_path_resolver=self.import_path_resolver,
-                        schema=self.schema,
-                        metadata_name=f"{self.metadata_name}.metadata",
-                        columns=columns[table],
-                        comment=table_comment.get(table, []),
-                        check_constraints=check_constraints.get(table, []),
-                        foreign_keys=foreign_keys.get(table, []),
-                        indexes=indexes.get(table, []),
-                        primary_key=pk_constraint.get(table, []),
-                        unique_constraints=unique_constraints.get(table, []),
-                    )
-                )
-
-            else:
-                generator = SQLModelTableGenerator(
-                    name=table[1],
-                    import_path_resolver=self.import_path_resolver,
-                    schema=self.schema,
-                    metadata_name=self.metadata_name,
-                    columns=columns[table],
-                    comment=table_comment.get(table, {}),
-                    check_constraints=check_constraints.get(table, []),
-                    foreign_keys=foreign_keys.get(table, []),
-                    indexes=indexes.get(table, []),
-                    primary_key=pk_constraint.get(table, {}),
-                    unique_constraints=unique_constraints.get(table, []),
-                    relationships=self.relationships.get(table, []),
-                )
-                tables_generators.append(generator)
-
-        import_statements = self.generate_imports()
-        tables = [tg.generate() for tg in tables_generators]
-        return "\n\n\n".join([import_statements, *enums, base_definition, *tables])
 
 
 def generate_schema(
