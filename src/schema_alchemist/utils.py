@@ -21,7 +21,6 @@ from typing import (
     Deque,
     OrderedDict,
     Union,
-    Callable,
 )
 
 import inflect
