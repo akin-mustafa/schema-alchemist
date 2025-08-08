@@ -8,7 +8,6 @@ import re
 import string
 from collections import defaultdict, deque, OrderedDict as ColOrderedDict, namedtuple
 from enum import Enum
-from sqlalchemy import Enum as SqlEnum, ARRAY
 from typing import (
     Type,
     Any,
@@ -22,9 +21,11 @@ from typing import (
     Deque,
     OrderedDict,
     Union,
+    Callable,
 )
 
 import inflect
+from sqlalchemy import Enum as SqlEnum, ARRAY
 
 DEFAULT_INDENT_CHAR = os.getenv("DEFAULT_IDENT_CHAR", " ")
 DEFAULT_INDENT_MULTIPLIER = int(os.getenv("DEFAULT_IDENT_MULTIPLIER", 4))
@@ -356,15 +357,28 @@ class ImportPathResolver:
         return ImportParts(obj)
 
     @classmethod
+    def is_keyword(cls, s: Any) -> bool:
+        if isinstance(s, bytes):
+            s = s.decode("utf-8")
+        if isinstance(s, str):
+            return keyword.iskeyword(s)
+        return False
+
+    @classmethod
+    def is_builtin(cls, obj: Any) -> bool:
+        if isinstance(obj, bytes):
+            obj = obj.decode("utf-8")
+        if isinstance(obj, str):
+            return obj in __builtins__
+        module_name, _ = ImportParts.get_module_and_class(obj)
+        return module_name == "builtins"
+
+    @classmethod
     def is_builtin_or_keyword(cls, obj: Any) -> bool:
         """
         Check if the given object/string corresponds to the builtins module.
         """
-        if isinstance(obj, str):
-            return obj in __builtins__ or keyword.iskeyword(obj)
-
-        module_name, _ = ImportParts.get_module_and_class(obj)
-        return module_name == "builtins"
+        return cls.is_builtin(obj) or cls.is_keyword(obj)
 
     def find_lcp_parts_for_import(
         self, import_path: str
@@ -436,24 +450,34 @@ def convert_to_class_name(s: str) -> str:
     return class_name
 
 
-def convert_to_attribute_name(s: str) -> str:
+def convert_to_variable_name(
+    s: str,
+    check_import_conflict: bool = False,
+) -> str:
     if not isinstance(s, str):
         class_name = getattr(s, "__name__", s.__class__.__name__)
         raise ValueError("Invalid argument type: {}".format(class_name))
 
-    s = re.sub(r"[^0-9a-zA-Z]+", " ", s)
+    s = re.sub(r"[^0-9a-zA-Z_]", "_", s)
+    s = re.sub(r"^[^0-9a-zA-Z_]+", "", s)
+    s = s or "_"
+    if s[0].isdigit():
+        s = "_" + s
+
+    s = re.sub(r"__+", "_", s)
 
     if not s.strip():
         raise ValueError("Class name cannot be empty.")
 
-    words = s.split()
-    attr_name = "_".join(words)
+    check_method = (
+        ImportPathResolver.is_builtin_or_keyword
+        if check_import_conflict
+        else ImportPathResolver.is_keyword
+    )
 
-    if attr_name[0].isdigit():
-        attr_name = "_" + attr_name
-    if ImportPathResolver.is_builtin_or_keyword(attr_name):
-        attr_name += "_"
-    return attr_name
+    if check_method(s):
+        s += "_"
+    return s
 
 
 def create_table_name(table: str, schema: Optional[str] = None) -> str:
