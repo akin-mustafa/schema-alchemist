@@ -1,4 +1,5 @@
 from copy import deepcopy
+from functools import cached_property
 from typing import (
     Optional,
     Any,
@@ -28,6 +29,7 @@ from schema_alchemist.utils import (
     StringReprWrapper,
     ImportPathResolver,
     get_annotation_of_type,
+    convert_to_variable_name,
 )
 
 
@@ -150,7 +152,6 @@ class ColumnGenerator(BaseGenerator):
         self.parameters.pop("type", None)
         self.parameters["server_default"] = self.parameters.pop("default", None)
         self.parameters["type_"] = self.__format_column_type()
-
         self.parameters["args"] = self.__collect_var_args()
         return self.parameters
 
@@ -174,9 +175,9 @@ class DeclarativeColumnGenerator(ColumnGenerator):
     def klass(self) -> Callable:
         return mapped_column
 
-    @property
+    @cached_property
     def column_attr_name(self) -> str:
-        return self.column_name.replace(" ", "_")
+        return convert_to_variable_name(self.column_name)
 
     @property
     def python_annotation(self) -> str:
@@ -228,13 +229,16 @@ class SQLModelColumnGenerator(DeclarativeColumnGenerator):
         parameters = {"sa_column": StringReprWrapper(sa_column.generate())}
         if self.column_nullable or self.parameters.get("primary_key"):
             parameters["default"] = None
-        if self.column_name in dir(SQLModel):
+        if (
+            self.column_name in dir(SQLModel)
+            or self.column_name != self.column_attr_name
+        ):
             parameters["alias"] = self.column_name
         return parameters
 
     @property
     def column_attr_name(self) -> str:
-        column_name = self.column_name
+        column_name = convert_to_variable_name(self.column_name)
         while column_name in dir(SQLModel):
             column_name += "_"
         return column_name.replace(" ", "_")

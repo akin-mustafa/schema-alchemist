@@ -11,7 +11,11 @@ from sqlmodel import Relationship
 
 from schema_alchemist.constants import SQLRelationshipType
 from schema_alchemist.generators.base_generators import BaseGenerator
-from schema_alchemist.utils import ImportPathResolver, StringReprWrapper
+from schema_alchemist.utils import (
+    ImportPathResolver,
+    StringReprWrapper,
+    convert_to_variable_name,
+)
 
 
 class DeclarativeRelationGenerator(BaseGenerator):
@@ -83,8 +87,9 @@ class DeclarativeRelationGenerator(BaseGenerator):
 
     def generate(self, *args, **kwargs) -> str:
         mapped_import_name = self.import_path_resolver.get_usage_name(Mapped)
+        attribute_name = convert_to_variable_name(self.attribute_name)
         return (
-            f"{self.indent}{self.attribute_name}: "
+            f"{self.indent}{attribute_name}: "
             f"{mapped_import_name}[{self.python_annotation}] = "
             f"{self.generate_relation()}"
         )
@@ -124,7 +129,8 @@ class SQLModelRelationGenerator(DeclarativeRelationGenerator):
         return Relationship
 
     def generate(self, *args, **kwargs) -> str:
+        attribute_name = convert_to_variable_name(self.attribute_name)
         return (
-            f"{self.indent}{self.attribute_name}: {self.python_annotation} = "
+            f"{self.indent}{attribute_name}: {self.python_annotation} = "
             f"{self.generate_relation()}"
         )

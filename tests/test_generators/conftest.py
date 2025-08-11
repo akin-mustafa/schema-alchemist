@@ -46,6 +46,14 @@ def reflected_data():
                     "autoincrement": False,
                     "comment": None,
                 },
+                {
+                    "name": "1Dummy/test",
+                    "type": INTEGER(),
+                    "nullable": True,
+                    "default": None,
+                    "autoincrement": False,
+                    "comment": None,
+                },
             ],
             ("public", "courses"): [
                 {
@@ -813,6 +821,7 @@ Categories = Table('categories', metadata,
     Column('id', INTEGER(), autoincrement=True, nullable=False, primary_key=True, server_default='nextval(\\'"public".categories_id_seq\\'::regclass)'),
     Column('name', VARCHAR(length=100), autoincrement=False, index=True, unique=True, nullable=False),
     Column('parent_id', INTEGER(), autoincrement=False, nullable=True),
+    Column('1Dummy/test', INTEGER(), autoincrement=False, nullable=True),
 
     PrimaryKeyConstraint('id', name='categories_pkey'),
     ForeignKeyConstraint(columns=['parent_id'], refcolumns=['public.categories.id'], name='fk_categories_parent', ondelete='SET NULL'),
@@ -1200,6 +1209,7 @@ class Categories(Base):
     id: Mapped[int] = mapped_column('id', INTEGER(), nullable=False, primary_key=True, autoincrement=True, server_default='nextval(\\'"public".categories_id_seq\\'::regclass)')
     name: Mapped[str] = mapped_column('name', VARCHAR(length=100), nullable=False, autoincrement=False, index=True, unique=True)
     parent_id: Mapped[Optional[int]] = mapped_column('parent_id', INTEGER(), nullable=True, autoincrement=False)
+    _1Dummy_test: Mapped[Optional[int]] = mapped_column('1Dummy/test', INTEGER(), nullable=True, autoincrement=False)
 
     parent: Mapped['Categories'] = relationship(back_populates='sub_categories', foreign_keys='[Categories.parent_id,]', remote_side='Categories.id')
     sub_categories: Mapped[List['Categories']] = relationship(back_populates='parent', foreign_keys='[Categories.parent_id,]')
@@ -1443,6 +1453,7 @@ class Categories(Base, table=True):
     id: Optional[int] = Field(default=None, sa_column=Column('id', INTEGER(), autoincrement=True, nullable=False, primary_key=True, server_default='nextval(\\'"public".categories_id_seq\\'::regclass)'))
     name: str = Field(sa_column=Column('name', VARCHAR(length=100), autoincrement=False, index=True, unique=True, nullable=False))
     parent_id: Optional[int] = Field(default=None, sa_column=Column('parent_id', INTEGER(), autoincrement=False, nullable=True))
+    _1Dummy_test: Optional[int] = Field(default=None, alias='1Dummy/test', sa_column=Column('1Dummy/test', INTEGER(), autoincrement=False, nullable=True))
 
     parent: 'Categories' = Relationship(back_populates='sub_categories', sa_relationship_kwargs={'remote_side': 'Categories.id', 'foreign_keys': '[Categories.parent_id,]'})
     sub_categories: List['Categories'] = Relationship(back_populates='parent', sa_relationship_kwargs={'foreign_keys': '[Categories.parent_id,]'})
